@@ -187,6 +187,10 @@
        <PARAMETER>ET_PARAMETERS</PARAMETER>
        <TYP>ZRULERUN_KEY_VALUE_T</TYP>
       </RSEXP>
+      <RSEXP>
+       <PARAMETER>EV_EVENT_TYPE</PARAMETER>
+       <TYP>ZRULERUN_EVTYP</TYP>
+      </RSEXP>
      </EXPORT>
      <EXCEPTION>
       <RSEXC>
@@ -250,9 +254,14 @@
        <INDEX> 011</INDEX>
       </RSFDO>
       <RSFDO>
+       <PARAMETER>EV_EVENT_TYPE</PARAMETER>
+       <KIND>P</KIND>
+       <INDEX> 012</INDEX>
+      </RSFDO>
+      <RSFDO>
        <PARAMETER>ZRULERUNNER_ERROR</PARAMETER>
        <KIND>X</KIND>
-       <INDEX> 012</INDEX>
+       <INDEX> 013</INDEX>
       </RSFDO>
      </DOCUMENTATION>
     </item>

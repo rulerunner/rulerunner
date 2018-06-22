@@ -15,61 +15,49 @@
    <TPOOL>
     <item>
      <ID>I</ID>
-     <KEY>001</KEY>
-     <ENTRY>Value</ENTRY>
-     <LENGTH>132</LENGTH>
-    </item>
-    <item>
-     <ID>I</ID>
-     <KEY>002</KEY>
-     <ENTRY>Key</ENTRY>
-     <LENGTH>132</LENGTH>
-    </item>
-    <item>
-     <ID>I</ID>
-     <KEY>003</KEY>
+     <KEY>011</KEY>
      <ENTRY>Event Type</ENTRY>
      <LENGTH>132</LENGTH>
     </item>
     <item>
      <ID>I</ID>
-     <KEY>004</KEY>
+     <KEY>012</KEY>
      <ENTRY>Key</ENTRY>
      <LENGTH>132</LENGTH>
     </item>
     <item>
      <ID>I</ID>
-     <KEY>005</KEY>
+     <KEY>013</KEY>
      <ENTRY>Value (case sens.)</ENTRY>
      <LENGTH>132</LENGTH>
     </item>
     <item>
      <ID>I</ID>
-     <KEY>006</KEY>
+     <KEY>014</KEY>
      <ENTRY>Key</ENTRY>
      <LENGTH>132</LENGTH>
     </item>
     <item>
      <ID>I</ID>
-     <KEY>007</KEY>
+     <KEY>015</KEY>
      <ENTRY>Value (case sens.)</ENTRY>
      <LENGTH>132</LENGTH>
     </item>
     <item>
      <ID>I</ID>
-     <KEY>008</KEY>
+     <KEY>016</KEY>
      <ENTRY>Key</ENTRY>
      <LENGTH>132</LENGTH>
     </item>
     <item>
      <ID>I</ID>
-     <KEY>009</KEY>
+     <KEY>017</KEY>
      <ENTRY>Value (case sens.)</ENTRY>
      <LENGTH>132</LENGTH>
     </item>
     <item>
      <ID>I</ID>
-     <KEY>010</KEY>
+     <KEY>018</KEY>
      <ENTRY>Resultgroup</ENTRY>
      <LENGTH>132</LENGTH>
     </item>
@@ -77,21 +65,15 @@
    <DESCRIPTIONS>
     <SEOCOMPOTX>
      <CLSNAME>ZCL_ZRULERUNNER_ODATA_MPC</CLSNAME>
-     <CMPNAME>DEFINE_ASSOCIATIONS</CMPNAME>
+     <CMPNAME>DEFINE_COMPLEXTYPES</CMPNAME>
      <LANGU>E</LANGU>
-     <DESCRIPT>DEFINE_ASSOCIATIONS</DESCRIPT>
+     <DESCRIPT>DEFINE_COMPLEXTYPES</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CLSNAME>ZCL_ZRULERUNNER_ODATA_MPC</CLSNAME>
-     <CMPNAME>DEFINE_ES_PARAMETERS</CMPNAME>
+     <CMPNAME>DEFINE_RULERUNNERKEYVALUE</CMPNAME>
      <LANGU>E</LANGU>
-     <DESCRIPT>DEFINE_ES_PARAMETERS</DESCRIPT>
-    </SEOCOMPOTX>
-    <SEOCOMPOTX>
-     <CLSNAME>ZCL_ZRULERUNNER_ODATA_MPC</CLSNAME>
-     <CMPNAME>DEFINE_IS_PARAMETERS</CMPNAME>
-     <LANGU>E</LANGU>
-     <DESCRIPT>DEFINE_IS_PARAMETERS</DESCRIPT>
+     <DESCRIPT>DEFINE_RULERUNNERKEYVALUE</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CLSNAME>ZCL_ZRULERUNNER_ODATA_MPC</CLSNAME>
