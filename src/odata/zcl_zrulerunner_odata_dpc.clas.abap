@@ -110,7 +110,7 @@ CLASS ZCL_ZRULERUNNER_ODATA_DPC IMPLEMENTATION.
   method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~CREATE_ENTITY.
 *&----------------------------------------------------------------------------------------------*
 *&  Include           /IWBEP/DPC_TEMP_CRT_ENTITY_BASE
-*&* This class has been generated on 22.06.2018 13:00:35 in client 001
+*&* This class has been generated on 02.08.2018 13:18:11 in client 001
 *&*
 *&*       WARNING--> NEVER MODIFY THIS CLASS <--WARNING
 *&*   If you want to change the DPC implementation, use the
@@ -165,7 +165,7 @@ ENDCASE.
   method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~DELETE_ENTITY.
 *&----------------------------------------------------------------------------------------------*
 *&  Include           /IWBEP/DPC_TEMP_DEL_ENTITY_BASE
-*&* This class has been generated on 22.06.2018 13:00:35 in client 001
+*&* This class has been generated on 02.08.2018 13:18:11 in client 001
 *&*
 *&*       WARNING--> NEVER MODIFY THIS CLASS <--WARNING
 *&*   If you want to change the DPC implementation, use the
@@ -207,7 +207,7 @@ CASE lv_entityset_name.
   method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_ENTITY.
 *&-----------------------------------------------------------------------------------------------*
 *&  Include           /IWBEP/DPC_TEMP_GETENTITY_BASE
-*&* This class has been generated  on 22.06.2018 13:00:35 in client 001
+*&* This class has been generated  on 02.08.2018 13:18:11 in client 001
 *&*
 *&*       WARNING--> NEVER MODIFY THIS CLASS <--WARNING
 *&*   If you want to change the DPC implementation, use the
@@ -268,7 +268,7 @@ CASE lv_entityset_name.
   method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_ENTITYSET.
 *&----------------------------------------------------------------------------------------------*
 *&  Include           /IWBEP/DPC_TMP_ENTITYSET_BASE
-*&* This class has been generated on 22.06.2018 13:00:35 in client 001
+*&* This class has been generated on 02.08.2018 13:18:11 in client 001
 *&*
 *&*       WARNING--> NEVER MODIFY THIS CLASS <--WARNING
 *&*   If you want to change the DPC implementation, use the
@@ -276,7 +276,7 @@ CASE lv_entityset_name.
 *&-----------------------------------------------------------------------------------------------*
  DATA rulerunnerkeyval_get_entityset TYPE zcl_zrulerunner_odata_mpc=>tt_rulerunnerkeyvalue.
  DATA lv_entityset_name TYPE string.
-break-point.
+
 lv_entityset_name = io_tech_request_context->get_entity_set_name( ).
 
 CASE lv_entityset_name.
@@ -333,7 +333,7 @@ CASE lv_entityset_name.
   method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~UPDATE_ENTITY.
 *&----------------------------------------------------------------------------------------------*
 *&  Include           /IWBEP/DPC_TEMP_UPD_ENTITY_BASE
-*&* This class has been generated on 22.06.2018 13:00:35 in client 001
+*&* This class has been generated on 02.08.2018 13:18:11 in client 001
 *&*
 *&*       WARNING--> NEVER MODIFY THIS CLASS <--WARNING
 *&*   If you want to change the DPC implementation, use the
@@ -535,310 +535,10 @@ lo_logger = /iwbep/if_mgw_conv_srv_runtime~get_logger( ).
 
 
   method RULERUNNERKEYVAL_GET_ENTITYSET.
-*-------------------------------------------------------------
-*  Data declaration
-*-------------------------------------------------------------
- data ev_event_type type zif_zrulerun_odata_key_value=>zrulerun_evtyp.
- data iv_event_type type zif_zrulerun_odata_key_value=>zrulerun_evtyp.
- data iv_parameter_1_key type zif_zrulerun_odata_key_value=>zrulerun_key.
- data iv_parameter_1_value type zif_zrulerun_odata_key_value=>zrulerun_value.
- data iv_parameter_2_key type zif_zrulerun_odata_key_value=>zrulerun_key.
- data iv_parameter_2_value type zif_zrulerun_odata_key_value=>zrulerun_value.
- data iv_parameter_3_key type zif_zrulerun_odata_key_value=>zrulerun_key.
- data iv_parameter_3_value type zif_zrulerun_odata_key_value=>zrulerun_value.
- data iv_resultgroup type zif_zrulerun_odata_key_value=>zrulerun_resultgroup.
- data et_parameters  type zif_zrulerun_odata_key_value=>zrulerun_key_value_t.
- data ls_et_parameters  type line of zif_zrulerun_odata_key_value=>zrulerun_key_value_t.
- data lv_rfc_name type tfdir-funcname.
- data lv_destination type rfcdest.
- data lv_subrc type syst-subrc.
- data lv_exc_msg type /iwbep/mgw_bop_rfc_excep_text.
- data lx_root type ref to cx_root.
- data lo_filter type  ref to /iwbep/if_mgw_req_filter.
- data lt_filter_select_options type /iwbep/t_mgw_select_option.
- data lv_filter_str type string.
- data ls_paging type /iwbep/s_mgw_paging.
- data ls_converted_keys like line of et_entityset.
- data ls_filter type /iwbep/s_mgw_select_option.
- data ls_filter_range type /iwbep/s_cod_select_option.
- data lr_iv_event_type like range of ls_converted_keys-iv_event_type.
- data ls_iv_event_type like line of lr_iv_event_type.
- data lr_iv_parameter_1_key like range of ls_converted_keys-iv_parameter_1_key.
- data ls_iv_parameter_1_key like line of lr_iv_parameter_1_key.
- data lr_iv_parameter_1_value like range of ls_converted_keys-iv_parameter_1_value.
- data ls_iv_parameter_1_value like line of lr_iv_parameter_1_value.
- data lr_iv_parameter_2_key like range of ls_converted_keys-iv_parameter_2_key.
- data ls_iv_parameter_2_key like line of lr_iv_parameter_2_key.
- data lr_iv_parameter_2_value like range of ls_converted_keys-iv_parameter_2_value.
- data ls_iv_parameter_2_value like line of lr_iv_parameter_2_value.
- data lr_iv_parameter_3_key like range of ls_converted_keys-iv_parameter_3_key.
- data ls_iv_parameter_3_key like line of lr_iv_parameter_3_key.
- data lr_iv_parameter_3_value like range of ls_converted_keys-iv_parameter_3_value.
- data ls_iv_parameter_3_value like line of lr_iv_parameter_3_value.
- data lr_iv_resultgroup like range of ls_converted_keys-iv_resultgroup.
- data ls_iv_resultgroup like line of lr_iv_resultgroup.
- data lo_dp_facade type ref to /iwbep/if_mgw_dp_facade.
- data ls_gw_et_parameters like line of et_entityset.
- data lv_skip     type int4.
- data lv_top      type int4.
-
-*-------------------------------------------------------------
-*  Map the runtime request to the RFC - Only mapped attributes
-*-------------------------------------------------------------
-* Get all input information from the technical request context object
-* Since DPC works with internal property names and runtime API interface holds external property names
-* the process needs to get the all needed input information from the technical request context object
-* Get filter or select option information
- lo_filter = io_tech_request_context->get_filter( ).
- lt_filter_select_options = lo_filter->get_filter_select_options( ).
- lv_filter_str = lo_filter->get_filter_string( ).
-
-* Check if the supplied filter is supported by standard gateway runtime process
- if  lv_filter_str            is not initial
- and lt_filter_select_options is initial.
-   " If the string of the Filter System Query Option is not automatically converted into
-   " filter option table (lt_filter_select_options), then the filtering combination is not supported
-   " Log message in the application log
-   me->/iwbep/if_sb_dpc_comm_services~log_message(
-     exporting
-       iv_msg_type   = 'E'
-       iv_msg_id     = '/IWBEP/MC_SB_DPC_ADM'
-       iv_msg_number = 025 ).
-   " Raise Exception
-   raise exception type /iwbep/cx_mgw_tech_exception
-     exporting
-       textid = /iwbep/cx_mgw_tech_exception=>internal_error.
- endif.
-
-* Get key table information
- io_tech_request_context->get_converted_source_keys(
-   importing
-     es_key_values  = ls_converted_keys ).
-
- ls_paging-top = io_tech_request_context->get_top( ).
- ls_paging-skip = io_tech_request_context->get_skip( ).
-
-* Maps filter table lines to function module parameters
- loop at lt_filter_select_options into ls_filter.
-
-   loop at ls_filter-select_options into ls_filter_range.
-     case ls_filter-property.
-       when 'IV_EVENT_TYPE'.
-         lo_filter->convert_select_option(
-           exporting
-             is_select_option = ls_filter
-           importing
-             et_select_option = lr_iv_event_type ).
-
-         read table lr_iv_event_type into ls_iv_event_type index 1.
-         if sy-subrc = 0.
-           iv_event_type = ls_iv_event_type-low.
-         endif.
-       when 'IV_PARAMETER_1_KEY'.
-         lo_filter->convert_select_option(
-           exporting
-             is_select_option = ls_filter
-           importing
-             et_select_option = lr_iv_parameter_1_key ).
-
-         read table lr_iv_parameter_1_key into ls_iv_parameter_1_key index 1.
-         if sy-subrc = 0.
-           iv_parameter_1_key = ls_iv_parameter_1_key-low.
-         endif.
-       when 'IV_PARAMETER_1_VALUE'.
-         lo_filter->convert_select_option(
-           exporting
-             is_select_option = ls_filter
-           importing
-             et_select_option = lr_iv_parameter_1_value ).
-
-         read table lr_iv_parameter_1_value into ls_iv_parameter_1_value index 1.
-         if sy-subrc = 0.
-           iv_parameter_1_value = ls_iv_parameter_1_value-low.
-         endif.
-       when 'IV_PARAMETER_2_KEY'.
-         lo_filter->convert_select_option(
-           exporting
-             is_select_option = ls_filter
-           importing
-             et_select_option = lr_iv_parameter_2_key ).
-
-         read table lr_iv_parameter_2_key into ls_iv_parameter_2_key index 1.
-         if sy-subrc = 0.
-           iv_parameter_2_key = ls_iv_parameter_2_key-low.
-         endif.
-       when 'IV_PARAMETER_2_VALUE'.
-         lo_filter->convert_select_option(
-           exporting
-             is_select_option = ls_filter
-           importing
-             et_select_option = lr_iv_parameter_2_value ).
-
-         read table lr_iv_parameter_2_value into ls_iv_parameter_2_value index 1.
-         if sy-subrc = 0.
-           iv_parameter_2_value = ls_iv_parameter_2_value-low.
-         endif.
-       when 'IV_PARAMETER_3_KEY'.
-         lo_filter->convert_select_option(
-           exporting
-             is_select_option = ls_filter
-           importing
-             et_select_option = lr_iv_parameter_3_key ).
-
-         read table lr_iv_parameter_3_key into ls_iv_parameter_3_key index 1.
-         if sy-subrc = 0.
-           iv_parameter_3_key = ls_iv_parameter_3_key-low.
-         endif.
-       when 'IV_PARAMETER_3_VALUE'.
-         lo_filter->convert_select_option(
-           exporting
-             is_select_option = ls_filter
-           importing
-             et_select_option = lr_iv_parameter_3_value ).
-
-         read table lr_iv_parameter_3_value into ls_iv_parameter_3_value index 1.
-         if sy-subrc = 0.
-           iv_parameter_3_value = ls_iv_parameter_3_value-low.
-         endif.
-       when 'IV_RESULTGROUP'.
-         lo_filter->convert_select_option(
-           exporting
-             is_select_option = ls_filter
-           importing
-             et_select_option = lr_iv_resultgroup ).
-
-         read table lr_iv_resultgroup into ls_iv_resultgroup index 1.
-         if sy-subrc = 0.
-           iv_resultgroup = ls_iv_resultgroup-low.
-         endif.
-       when others.
-         " Log message in the application log
-         me->/iwbep/if_sb_dpc_comm_services~log_message(
-           exporting
-             iv_msg_type   = 'E'
-             iv_msg_id     = '/IWBEP/MC_SB_DPC_ADM'
-             iv_msg_number = 020
-             iv_msg_v1     = ls_filter-property ).
-         " Raise Exception
-         raise exception type /iwbep/cx_mgw_tech_exception
-           exporting
-             textid = /iwbep/cx_mgw_tech_exception=>internal_error.
-     endcase.
-   endloop.
-
- endloop.
-
-* Get RFC destination
- lo_dp_facade = /iwbep/if_mgw_conv_srv_runtime~get_dp_facade( ).
- lv_destination = /iwbep/cl_sb_gen_dpc_rt_util=>get_rfc_destination( io_dp_facade = lo_dp_facade ).
-
-*-------------------------------------------------------------
-*  Call RFC function module
-*-------------------------------------------------------------
- lv_rfc_name = 'ZRULERUN_ODATA_KEY_VALUE'.
-
- if lv_destination is initial or lv_destination eq 'NONE'.
-
-   try.
-       call function lv_rfc_name
-         exporting
-           iv_event_type        = iv_event_type
-           iv_parameter_1_key   = iv_parameter_1_key
-           iv_parameter_1_value = iv_parameter_1_value
-           iv_parameter_2_key   = iv_parameter_2_key
-           iv_parameter_2_value = iv_parameter_2_value
-           iv_parameter_3_key   = iv_parameter_3_key
-           iv_parameter_3_value = iv_parameter_3_value
-           iv_resultgroup       = iv_resultgroup
-         importing
-           et_parameters        = et_parameters
-           ev_event_type        = ev_event_type
-         exceptions
-           zrulerunner_error    = 1
-           system_failure       = 1000 message lv_exc_msg
-           others               = 1002.
-
-       lv_subrc = sy-subrc.
-*in case of co-deployment the exception is raised and needs to be caught
-     catch cx_root into lx_root.
-       lv_subrc = 1001.
-       lv_exc_msg = lx_root->if_message~get_text( ).
-   endtry.
-
- else.
-
-   call function lv_rfc_name destination lv_destination
-     exporting
-       iv_event_type         = iv_event_type
-       iv_parameter_1_key    = iv_parameter_1_key
-       iv_parameter_1_value  = iv_parameter_1_value
-       iv_parameter_2_key    = iv_parameter_2_key
-       iv_parameter_2_value  = iv_parameter_2_value
-       iv_parameter_3_key    = iv_parameter_3_key
-       iv_parameter_3_value  = iv_parameter_3_value
-       iv_resultgroup        = iv_resultgroup
-     importing
-       et_parameters         = et_parameters
-       ev_event_type         = ev_event_type
-     exceptions
-       zrulerunner_error     = 1
-       system_failure        = 1000 message lv_exc_msg
-       communication_failure = 1001 message lv_exc_msg
-       others                = 1002.
-
-   lv_subrc = sy-subrc.
-
- endif.
-
-*-------------------------------------------------------------
-*  Map the RFC response to the caller interface - Only mapped attributes
-*-------------------------------------------------------------
-*-------------------------------------------------------------
-* Error and exception handling
-*-------------------------------------------------------------
- if lv_subrc <> 0.
-* Execute the RFC exception handling process
-   me->/iwbep/if_sb_dpc_comm_services~rfc_exception_handling(
-     exporting
-       iv_subrc            = lv_subrc
-       iv_exp_message_text = lv_exc_msg ).
- endif.
-
-*-------------------------------------------------------------------------*
-*             - Post Backend Call -
-*-------------------------------------------------------------------------*
- if ls_paging-skip is not initial.
-*  If the Skip value was requested at runtime
-*  the response table will provide backend entries from skip + 1, meaning start from skip +1
-*  for example: skip=5 means to start get results from the 6th row
-   lv_skip = ls_paging-skip + 1.
- endif.
-*  The Top value was requested at runtime but was not handled as part of the function interface
- if  ls_paging-top <> 0
- and lv_skip is not initial.
-*  if lv_skip > 0 retrieve the entries from lv_skip + Top - 1
-*  for example: skip=5 and top=2 means to start get results from the 6th row and end in row number 7
-   lv_top = ls_paging-top + lv_skip - 1.
- elseif ls_paging-top <> 0
- and    lv_skip is initial.
-   lv_top = ls_paging-top.
- else.
-   lv_top = lines( et_parameters ).
- endif.
-
-*  - Map properties from the backend to the Gateway output response table -
-
- loop at et_parameters into ls_et_parameters
-*  Provide the response entries according to the Top and Skip parameters that were provided at runtime
-      from lv_skip to lv_top.
-*  Only fields that were mapped will be delivered to the response table
-   ls_gw_et_parameters-etresultkeyvaluetable-key = ls_et_parameters-key.
-   ls_gw_et_parameters-etresultkeyvaluetable-value = ls_et_parameters-value.
-   ls_gw_et_parameters-iv_event_type = ev_event_type.
-   append ls_gw_et_parameters to et_entityset.
-   clear ls_gw_et_parameters.
- endloop.
-
+  RAISE EXCEPTION TYPE /iwbep/cx_mgw_not_impl_exc
+    EXPORTING
+      textid = /iwbep/cx_mgw_not_impl_exc=>method_not_implemented
+      method = 'RULERUNNERKEYVAL_GET_ENTITYSET'.
   endmethod.
 
 
