@@ -7,6 +7,8 @@ class zcl_rulerunner definition
     types: tyv_version type c length 15,
            tyt_version type table of tyv_version.
     types: tyv_delta_mode type c length 1.
+    types: tyv_bw_upd_mode type c length 2.
+    types: tyv_bw_request type c length 30.
     types: tyv_package_size type n length 6.
     types: tyt_rulerun_events type standard table of zrulerun_events.
     types tyv_selection_mode type c length 2.
@@ -73,6 +75,17 @@ class zcl_rulerunner definition
     types tys_components type abap_componentdescr .
     types tys_fieldmapping type zrulerun_fieldmapping_s .
     types tyv_type_kind type abap_typecategory .
+    types tyt_messages type standard table of smesg.
+    types: begin of tys_events_key,
+             client  type  mandt,
+             eventid type zrulerun_evtid,
+           end of tys_events_key,
+           begin of tys_eventlog_key,
+             client      type mandt,
+             eventid     type zrulerun_evtid,
+             resultgroup type zrulerun_resultgroup,
+             functionid  type zrulerun_functionid,
+           end of tys_eventlog_key.
     types:
       begin of tys_components_extended.
         include type abap_componentdescr.
@@ -130,6 +143,7 @@ class zcl_rulerunner definition
     class-data gt_event_buffer type tyt_event_buffer .
     class-data gv_packetising_is_active type abap_bool.
     constants const_bw_simulation_request type rsrequest value 'DTPR_SIMULATION' ##NO_TEXT.
+    constants const_event_table_json_length type i value 2000.
     class-data gt_function_list_buffer type tyth_function_list .
     class-data gv_debug_mode type abap_bool .
     constants const_db_eventid_package_size type i value 1000 ##NO_TEXT.
@@ -140,22 +154,30 @@ class zcl_rulerunner definition
 *    dataMover-end
 
     class-methods class_constructor .
+
+    "! Adds an event to the rulerunner Event-table<br/>
+    "! If parameter iv_suppress_exceptions is set to 'X' no exceptions will be thrown<br/>
+    "! Exceptions might be thrown in case the list of parameters is to large<br/>
     class-methods add_event
       importing
-        !iv_event_type                  type zrulerun_evtyp
-        !it_parameters                  type zrulerun_key_value_t optional
-        !iv_parameter_1_key             type any optional
-        !iv_parameter_1_value           type any optional
-        !iv_parameter_2_key             type any optional
-        !iv_parameter_2_value           type any optional
-        !iv_parameter_3_key             type any optional
-        !iv_parameter_3_value           type any optional
-        !iv_planned_execution_timestamp type zrulerun_timestamp_pla optional
-        !iv_bw_dtp_request              type rsrequest optional
-      exporting
-        !ev_returncode                  type syst-subrc
-        !es_event_data                  type zrulerun_events_extended_s .
+                !iv_event_type                  type zrulerun_evtyp
+                !iv_suppress_exceptions         type abap_bool
+                !it_parameters                  type zrulerun_key_value_t optional
+                !iv_parameter_1_key             type any optional
+                !iv_parameter_1_value           type any optional
+                !iv_parameter_2_key             type any optional
+                !iv_parameter_2_value           type any optional
+                !iv_parameter_3_key             type any optional
+                !iv_parameter_3_value           type any optional
+                !iv_planned_execution_timestamp type zrulerun_timestamp_pla optional
+                !iv_bw_dtp_request              type tyv_bw_request optional
+                !iv_bw_dtp_delta_mode           type tyv_bw_upd_mode optional
 
+      exporting
+                !ev_returncode                  type syst-subrc
+                !es_event_data                  type zrulerun_events_extended_s
+      raising   zcx_rulerunner
+      .
 *  class-methods PROCESS_MULTIPLE_EVENTIDS
 *    importing
 *      !IT_EVENT_ID type TYT_EVENT_ID
@@ -167,21 +189,24 @@ class zcl_rulerunner definition
 
     class-methods process_event_directly
       importing
-        !iv_event_type        type zrulerun_evtyp
-        !it_parameters        type zrulerun_key_value_t optional
-        !iv_parameter_1_key   type any optional
-        !iv_parameter_1_value type any optional
-        !iv_parameter_2_key   type any optional
-        !iv_parameter_2_value type any optional
-        !iv_parameter_3_key   type any optional
-        !iv_parameter_3_value type any optional
+                !iv_event_type        type zrulerun_evtyp
+                !it_parameters        type zrulerun_key_value_t optional
+                !iv_parameter_1_key   type any optional
+                !iv_parameter_1_value type any optional
+                !iv_parameter_2_key   type any optional
+                !iv_parameter_2_value type any optional
+                !iv_parameter_3_key   type any optional
+                !iv_parameter_3_value type any optional
 *        !iv_brf_application_name type tyv_application_name optional
 *        !iv_brf_function_name    type tyv_function_name optional
-        !iv_resultgroup       type zrulerun_resultgroup optional
-        !it_resultgroups      type tyts_resultgroups optional
+                !iv_resultgroup       type zrulerun_resultgroup optional
+                !it_resultgroups      type tyts_resultgroups optional
       exporting
-        !ev_returncode        type syst-subrc
-        !eo_result_data       type any .
+                !ev_returncode        type syst-subrc
+                !eo_result_data       type any
+      raising   zcx_rulerunner.
+
+
     class-methods set_debug_mode
       importing
         !iv_debug_mode type abap_bool .
@@ -190,14 +215,14 @@ class zcl_rulerunner definition
 
     class-methods process_stored_events
       importing
-        !iv_package_size           type tyv_package_size
-        !iv_run_packetised         type abap_bool
-        !iv_timestamp_planned_from type zrulerun_timestamp_pla
-        !iv_timestamp_planned_to   type zrulerun_timestamp_pla
+                !iv_package_size           type tyv_package_size
+                !iv_run_packetised         type abap_bool
+                !iv_timestamp_planned_from type zrulerun_timestamp_pla
+                !iv_timestamp_planned_to   type zrulerun_timestamp_pla
 *        !iv_timestamp_created_from type zrulerun_timestamp_cre
 *        !iv_timestamp_created_to   type zrulerun_timestamp_cre
-        !iv_event_type             type zrulerun_evtyp
-        !it_event_type_range       type tyt_range_event_types optional
+                !iv_event_type             type zrulerun_evtyp
+                !it_event_type_range       type tyt_range_event_types optional
 *        !iv_select_processed_events type abap_bool "done in process_multiple_eventids()
 *        !iv_brf_application_name1  type tyv_application_name optional
 *        !iv_brf_function_name1     type tyv_function_name optional
@@ -205,18 +230,18 @@ class zcl_rulerunner definition
 *        !iv_brf_function_name2     type tyv_function_name optional
 *        !iv_brf_application_name3  type tyv_application_name optional
 *        !iv_brf_function_name3     type tyv_function_name optional
-        !iv_resultgroup            type zrulerun_resultgroup optional
-        !it_resultgroups           type tyts_resultgroups optional
-        iv_update_timestamps       type abap_bool
-        iv_repeat_processing       type abap_bool "already processed events are repeated
-        iv_update_delta_timestamp  type abap_bool
-        iv_delta_mode              type tyv_delta_mode
-        iv_test_mode               type abap_bool
+                !iv_resultgroup            type zrulerun_resultgroup optional
+                !it_resultgroups           type tyts_resultgroups optional
+                iv_update_timestamps       type abap_bool
+                iv_repeat_processing       type abap_bool "already processed events are repeated
+                iv_update_delta_timestamp  type abap_bool
+                iv_delta_mode              type tyv_delta_mode
+                iv_test_mode               type abap_bool
       exporting
-        !et_event_id               type tyt_event_id
-        !eo_result_data            type any
-        !ev_no_more_data           type abap_bool
-      .
+                !et_event_id               type tyt_event_id
+                !eo_result_data            type any
+                !ev_no_more_data           type abap_bool
+      raising   zcx_rulerunner.
 
 
 
@@ -224,53 +249,87 @@ class zcl_rulerunner definition
     class-methods process_multiple_eventids
       importing
 *        !it_event_id          type tyt_event_id
-        it_table_with_eventid type any table
+                it_table_with_eventid type any table
 *        !it_brf_function_list type tyth_function_list optional
-        iv_update_timestamps  type abap_bool default 'X'
-        iv_repeat_processing  type abap_bool
-        iv_package_size       type i
+                iv_update_timestamps  type abap_bool default 'X'
+                iv_repeat_processing  type abap_bool
+                iv_package_size       type i
 *        !iv_brf_application_name1 type tyv_application_name optional
 *        !iv_brf_function_name1    type tyv_function_name optional
 *        !iv_brf_application_name2 type tyv_application_name optional
 *        !iv_brf_function_name2    type tyv_function_name optional
 *        !iv_brf_application_name3 type tyv_application_name optional
 *        !iv_brf_function_name3    type tyv_function_name optional
-        iv_resultgroup        type zrulerun_resultgroup optional
-        it_resultgroups       type tyts_resultgroups optional
+                iv_resultgroup        type zrulerun_resultgroup optional
+                it_resultgroups       type tyts_resultgroups optional
       exporting
-        eo_result_data        type any
+                eo_result_data        type any
 *      changing
 *         ct_brf_function_list       type tyth_function_list optional
-      .
+      raising   zcx_rulerunner.
+
     class-methods check_debug_mode .
+
     class-methods show_rulerunner_customizing
       importing
-        iv_brf_component_id type zrulerun_functionid optional.
+                iv_brf_component_id type zrulerun_functionid optional
+      raising   zcx_rulerunner.
+
     class-methods move_data_source_to_target
       importing
-        io_source_data type any
+                io_source_data type any
       exporting
-        eo_target_data type any.
+                eo_target_data type any
+      raising   zcx_rulerunner.
+
+
     class-methods select_for_all_entries_in
       importing
-        iv_select_from_table_name    type any
-        it_for_all_entries_table     type any table
-        iv_for_all_entries_tablename type any
-        iv_where_field_1_db          type any
-        iv_where_field_1_for_all     type any
-        iv_where_field_2_db          type any optional
-        iv_where_field_2_for_all     type any optional
-        iv_where_field_3_db          type any optional
-        iv_where_field_3_for_all     type any optional
-        iv_where_field_4_db          type any optional
-        iv_where_field_4_for_all     type any optional
-        iv_where_field_5_db          type any optional
-        iv_where_field_5_for_all     type any optional
+                iv_select_from_table_name    type any
+                it_for_all_entries_table     type any table
+                iv_for_all_entries_tablename type any
+                iv_where_field_1_db          type any
+                iv_where_field_1_for_all     type any
+                iv_where_field_2_db          type any optional
+                iv_where_field_2_for_all     type any optional
+                iv_where_field_3_db          type any optional
+                iv_where_field_3_for_all     type any optional
+                iv_where_field_4_db          type any optional
+                iv_where_field_4_for_all     type any optional
+                iv_where_field_5_db          type any optional
+                iv_where_field_5_for_all     type any optional
       exporting
-        et_result_data               type any table.
+                et_result_data               type any table
+      raising   zcx_rulerunner.
+
+
     class-methods get_rulerunner_version
       exporting
-        et_versionS type tyt_version.
+                et_versions type tyt_version
+      raising   zcx_rulerunner
+      .
+
+
+
+
+    "!<p> Deletes records from Event and Event-Log tables</p>
+    class-methods delete_events
+      importing
+*        iv_database_deletion         type abap_bool
+                iv_delete_unprocessed_events type abap_bool
+                iv_delete_future_events      type abap_bool
+                iv_test_mode                 type abap_bool default 'X'
+                it_range_event_id            type tyt_range_event_id
+                it_range_resultgroups        type tyt_range_resultgroups
+                it_range_event_types         type tyt_range_event_types
+                it_range_timestamp_created   type tyt_range_timestamp
+                iv_timestamp_planned_max     type zrulerun_timestamp_pla
+                it_range_timestamp_processed type tyt_range_timestamp
+                iv_display_messages          type abap_bool  default 'X'
+      exporting
+                et_messages                  type tyt_messages
+      raising   zcx_rulerunner
+      .
 
 
 
@@ -371,9 +430,9 @@ class zcl_rulerunner definition
         ev_returncode     type sy-subrc .
 
     "! Method process_multiple_eventids_int
-    "!  processes a list of rulerunner event id's <br>
+    "!  processes a list of rulerunner event id's <br/>
     "!  These events must have been created before using zcl_rulerunner=>add_event()
-    "!
+    "!<br/>
     "! @parameter it_table_with_eventid | Any table that contains field EVENTID
     "! @parameter it_resultgroups |
     "! @parameter iv_update_timestamps |
@@ -446,6 +505,9 @@ class zcl_rulerunner definition
         iv_eventtype       type zrulerun_evtyp
       exporting
         ev_delta_timestamp type zrulerun_timestamp_pla.
+    class-methods message_store
+      changing
+        cs_message type smesg.
 
 
 
@@ -498,7 +560,15 @@ class zcl_rulerunner implementation.
       ls_zrulerun_event-eventtype = iv_event_type.
     endif.
 
-
+*    check  Delta mode
+*    SAP BW only: adding events in a BW transformation
+*    may only be useful, if DTP is executed in Delta Mode
+    if iv_bw_dtp_delta_mode is supplied.
+      if iv_bw_dtp_delta_mode <> const_delta_mode_delta.
+        ev_returncode = '1'.
+        return.
+      endif.
+    endif.
 
 *Step : process Parameters
     try .
@@ -560,7 +630,15 @@ class zcl_rulerunner implementation.
 
 
       catch cx_root.
-*####To Do####:
+*        ####To Do####:
+        ev_returncode = '05'.
+        raise exception type zcx_rulerunner
+          exporting
+*           textid          =
+*           previous        =
+*           mt_message      =
+            iv_message_text = 'Error while processing input-parameters'.
+        return.
     endtry.
 
 *    set Creation Timestamp
@@ -578,14 +656,28 @@ class zcl_rulerunner implementation.
 *Step : convert Parameters into JSON
       .
 *####To Do####: sorting? better not, because it might be relevant
+      try.
 
-      call method cl_fdt_json=>data_to_json
-        exporting
-          ia_data = lt_parameters
-        receiving
-          rv_json = lv_json_string.
-      ls_zrulerun_event-parajson = lv_json_string.
-      ls_zrulerun_event-paralength = strlen( lv_json_string ).
+          call method cl_fdt_json=>data_to_json
+            exporting
+              ia_data = lt_parameters
+            receiving
+              rv_json = lv_json_string.
+          ls_zrulerun_event-parajson = lv_json_string.
+          ls_zrulerun_event-paralength = strlen( lv_json_string ).
+
+        catch cx_root .
+          ev_returncode = '10'.
+          if iv_suppress_exceptions is initial.
+            raise exception type zcx_rulerunner
+              exporting
+*               textid          =
+*               previous        =
+*               mt_message      =
+                iv_message_text = 'Error while converting parameters into JSON string.'.
+          endif.
+          return.
+      endtry.
 
 
 
@@ -596,7 +688,21 @@ class zcl_rulerunner implementation.
               if_data       = lv_json_string
             importing
               ef_hashstring = lv_hash_string.
+
         catch cx_abap_message_digest .
+
+          ev_returncode = '20'.
+          if iv_suppress_exceptions is initial.
+            raise exception type zcx_rulerunner
+              exporting
+*               textid          =
+*               previous        =
+*               mt_message      =
+                iv_message_text = 'Error while converting parameters to hash-value.'.
+          endif.
+          return.
+
+
       endtry.
 
       ls_zrulerun_event-parahash = lv_hash_string.
@@ -627,17 +733,27 @@ class zcl_rulerunner implementation.
 *      ls_event_buffer_compare-parahash      = ls_zrulerun_event-parahash.
 
       cl_abap_container_utilities=>fill_container_c(
-    exporting
-*      im_value               = ls_event_buffer_compare
-      im_value               = ls_zrulerun_event
-    importing
-      ex_container           = lv_string
-    exceptions
-      illegal_parameter_type = 1
-      others                 = 2
+        exporting
+*          im_value               = ls_event_buffer_compare
+          im_value               = ls_zrulerun_event
+        importing
+          ex_container           = lv_string
+        exceptions
+          illegal_parameter_type = 1
+          others                 = 2
       ).
       if sy-subrc <> 0.
-        raise exception type zcx_rulerunner.
+
+        ev_returncode = '30'.
+        if iv_suppress_exceptions is initial.
+          raise exception type zcx_rulerunner
+            exporting
+*             textid          =
+*             previous        =
+*             mt_message      =
+              iv_message_text = 'Error while converting parameters to hash-value.'.
+        endif.
+        return.
       endif.
 
       try.
@@ -648,20 +764,34 @@ class zcl_rulerunner implementation.
               if_data       = lv_string
             importing
               ef_hashstring = lv_hash_string.
+
         catch cx_abap_message_digest .
+          ev_returncode = '40'.
+          if iv_suppress_exceptions is initial.
+            raise exception type zcx_rulerunner
+              exporting
+*               textid          =
+*               previous        =
+*               mt_message      =
+                iv_message_text = 'Error while converting parameters to hash-value.'.
+          endif.
+          return.
+
+
       endtry.
       ls_event_buffer-hashvalue = lv_hash_string.
 *   read buffer table
       read table gt_event_buffer with table key
         hashvalue = ls_event_buffer-hashvalue
         transporting no fields.
-      if sy-subrc = 0.
+      if sy-subrc = 0. "insert database?
 *       data are redundant
 *       record already has been inserted during this session
 *       no need to insert data,
-      else.
+      else. "insert data
 *        --------------
 *       new record
+
 *      get event id
 
         call function 'NUMBER_GET_NEXT'
@@ -686,15 +816,44 @@ class zcl_rulerunner implementation.
             buffer_overflow         = 7
             others                  = 8.
         if sy-subrc <> 0.
-*         Implement suitable error handling here
+
+          ev_returncode = '50'.
+          if iv_suppress_exceptions is initial.
+            raise exception type zcx_rulerunner
+              exporting
+*               textid          =
+*               previous        =
+*               mt_message      =
+                iv_message_text = 'Error while getting Eventid number.'.
+          endif.
+          return.
+
         endif.
+
 *        -----------------------
 *       insert into database
-        insert zrulerun_events from ls_zrulerun_event.
+        try.
+
+
+            insert zrulerun_events from ls_zrulerun_event.
 *        ------------------------
 *      add Hashvalue to event buffer
-        insert ls_event_buffer into table gt_event_buffer.
-      endif.
+            insert ls_event_buffer into table gt_event_buffer.
+
+          catch cx_root.
+            ev_returncode = '60'.
+            if iv_suppress_exceptions is initial.
+              raise exception type zcx_rulerunner
+                exporting
+*                 textid          =
+*                 previous        =
+*                 mt_message      =
+                  iv_message_text = 'Error while inserting into database.'.
+            endif.
+            return.
+        endtry.
+
+      endif."sy-subrc = 0. "insert database?
 
 
     endif."lv_insert_database = abap_true.
@@ -2136,21 +2295,28 @@ class zcl_rulerunner implementation.
 
 *-----------------------------------------------
 *Step: execute event
-
-    call method zcl_rulerunner=>process_single_event
-      exporting
-        it_resultgroups   = lt_resultgroups
-*       it_brf_function_id   = lt_range_function_id
-*       it_brf_function_list = lt_brf_function_list
-      importing
-        ev_returncode     = ev_returncode
-        eo_target_data    = eo_result_data
-      changing
-        cs_event_id_data  = ls_event_data
-        ct_processing_log = lt_processing_log
-*       ct_brf_function_list = lt_brf_function_list
-      .
-
+    try.
+        call method zcl_rulerunner=>process_single_event
+          exporting
+            it_resultgroups   = lt_resultgroups
+*           it_brf_function_id   = lt_range_function_id
+*           it_brf_function_list = lt_brf_function_list
+          importing
+            ev_returncode     = ev_returncode
+            eo_target_data    = eo_result_data
+          changing
+            cs_event_id_data  = ls_event_data
+            ct_processing_log = lt_processing_log
+*           ct_brf_function_list = lt_brf_function_list
+          .
+      catch cx_root.
+        raise exception type zcx_rulerunner
+          exporting
+*           textid          =
+*           previous        =
+*           mt_message      =
+            iv_message_text = 'Error while processing single event'.
+    endtry.
   endmethod.
 
 
@@ -2613,17 +2779,17 @@ class zcl_rulerunner implementation.
       <ls_event_id>     type tys_event_id,
       <ls_resultgroups> type tys_resultgroups.
 
-
+    try.
 *    transfer event_types into rangetab
-    if it_event_type_range is supplied.
-      lt_range_event_types = it_event_type_range.
-    endif.
-    if iv_event_type is not initial.
-      ls_range_event_types-option = 'EQ'.
-      ls_range_event_types-sign = 'I'.
-      ls_range_event_types-high = iv_event_type.
-      append ls_range_event_types to lt_range_event_types.
-    endif.
+        if it_event_type_range is supplied.
+          lt_range_event_types = it_event_type_range.
+        endif.
+        if iv_event_type is not initial.
+          ls_range_event_types-option = 'EQ'.
+          ls_range_event_types-sign = 'I'.
+          ls_range_event_types-high = iv_event_type.
+          append ls_range_event_types to lt_range_event_types.
+        endif.
 
 *Step: check inputs
 *    if lt_range_event_types is initial .
@@ -2642,30 +2808,30 @@ class zcl_rulerunner implementation.
 
 *Step: initializations
 *    clear et_event_id. " in packetized mode we need to append ->no clear!
-    clear eo_result_data.
+        clear eo_result_data.
 
 
 *step: determine wether to open a database cursor
-    if iv_run_packetised = abap_true.
-      "packetising mode (2.a.)
-      if gv_db_cursor_events is initial "no cursor
-        and gv_packetising_is_active = abap_false. "
-        lv_open_cursor = abap_true.
-      else.
-        lv_open_cursor = abap_false.
-      endif.
-    else.
-      "non packetising mode (2.b.)-> always need to open a DB cursor
-      lv_open_cursor = abap_true.
-    endif. "iv_run_packetised = abap_true.
+        if iv_run_packetised = abap_true.
+          "packetising mode (2.a.)
+          if gv_db_cursor_events is initial "no cursor
+            and gv_packetising_is_active = abap_false. "
+            lv_open_cursor = abap_true.
+          else.
+            lv_open_cursor = abap_false.
+          endif.
+        else.
+          "non packetising mode (2.b.)-> always need to open a DB cursor
+          lv_open_cursor = abap_true.
+        endif. "iv_run_packetised = abap_true.
 
 
 *Step:  Open DB cursor
-    if lv_open_cursor = abap_true.
+        if lv_open_cursor = abap_true.
 
-      if gv_db_cursor_events is not initial.
-        close cursor gv_db_cursor_events.
-      endif.
+          if gv_db_cursor_events is not initial.
+            close cursor gv_db_cursor_events.
+          endif.
 
 
 
@@ -2677,11 +2843,11 @@ class zcl_rulerunner implementation.
 *      else.
 
 *        Full-Mode + Deltamode: same logic
-      if iv_timestamp_planned_to is initial.
-        lv_timestamp_planned_to = gv_timestamp.
-      else.
-        lv_timestamp_planned_to = iv_timestamp_planned_to.
-      endif.
+          if iv_timestamp_planned_to is initial.
+            lv_timestamp_planned_to = gv_timestamp.
+          else.
+            lv_timestamp_planned_to = iv_timestamp_planned_to.
+          endif.
 *      endif.
 
 *    Important: rulerunner stores delta-timestamps per
@@ -2691,133 +2857,133 @@ class zcl_rulerunner implementation.
 *        with the minimum timestamp stored in rulerunner
 
 *     set timestamp lv_timestamp_planned_from
-      if iv_delta_mode = const_delta_mode_delta.
+          if iv_delta_mode = const_delta_mode_delta.
 
 *       Important: In Delta-Mode we only support
 *       a single event_type in iv_event_type
 *        This is due to different timestamps per event_type in table zrulerun_delta
-        if it_event_type_range is supplied
-            and it_event_type_range is not initial.
-          raise exception type zcx_rulerunner
-            exporting
-*             textid          =
-*             previous        =
-*             mt_message      =
-              iv_message_text = 'In Delta-Mode it_event_type_range is not accepted.'.
-        endif.
+            if it_event_type_range is supplied
+                and it_event_type_range is not initial.
+              raise exception type zcx_rulerunner
+                exporting
+*                 textid          =
+*                 previous        =
+*                 mt_message      =
+                  iv_message_text = 'In Delta-Mode it_event_type_range is not accepted.'.
+            endif.
 
-        get_delta_timestamp(
-          exporting
-          it_resultgroups = lt_resultgroups
-          iv_eventtype    = iv_event_type
-          importing
-          ev_delta_timestamp = lv_timestamp_planned_from ).
-      else.
-        lv_timestamp_planned_from = iv_timestamp_planned_from.
-      endif.
+            get_delta_timestamp(
+              exporting
+              it_resultgroups = lt_resultgroups
+              iv_eventtype    = iv_event_type
+              importing
+              ev_delta_timestamp = lv_timestamp_planned_from ).
+          else.
+            lv_timestamp_planned_from = iv_timestamp_planned_from.
+          endif.
 *------Set Timestamps including Delta-Logic
 
 
 *    : transfer resultgroups into internal format
-      clear lt_resultgroups.
-      if iv_resultgroup is supplied and iv_resultgroup is not initial.
-        ls_resultgroups-resultgroup = iv_resultgroup.
-        append ls_resultgroups to lt_resultgroups.
-      endif.
-      if it_resultgroups is supplied and it_resultgroups is not initial.
-*        append lines of it_resultgroups to lt_resultgroups .
-
-        loop at it_resultgroups assigning <ls_resultgroups>.
-          if <ls_resultgroups>-resultgroup is not initial.
-            ls_resultgroups-resultgroup = <ls_resultgroups>-resultgroup.
+          clear lt_resultgroups.
+          if iv_resultgroup is supplied and iv_resultgroup is not initial.
+            ls_resultgroups-resultgroup = iv_resultgroup.
             append ls_resultgroups to lt_resultgroups.
           endif.
-        endloop.
-      endif.
+          if it_resultgroups is supplied and it_resultgroups is not initial.
+*        append lines of it_resultgroups to lt_resultgroups .
+
+            loop at it_resultgroups assigning <ls_resultgroups>.
+              if <ls_resultgroups>-resultgroup is not initial.
+                ls_resultgroups-resultgroup = <ls_resultgroups>-resultgroup.
+                append ls_resultgroups to lt_resultgroups.
+              endif.
+            endloop.
+          endif.
 
 
 *     open cursor according to selections
 
-      open  cursor @gv_db_cursor_events for
-        select
-          eventid ,
-          eventtype   ,
-          tst_created ,
-          tst_planned
+          open  cursor @gv_db_cursor_events for
+            select
+              eventid ,
+              eventtype   ,
+              tst_created ,
+              tst_planned
 *          ' ' as resultgroup ,
 *          ' ' as tst_delta
 *          , ' ' as function_id
-         from zrulerun_events
-          where
-              eventtype in @lt_range_event_types
-           and
-            "tst_planned <= @lv_timestamp_planned
-            tst_planned between @iv_timestamp_planned_from and @lv_timestamp_planned_to
-            " events with identical parameters will be processed only once,therefore sort by parahash
-           order by parahash
-             .
+             from zrulerun_events
+              where
+                  eventtype in @lt_range_event_types
+               and
+                "tst_planned <= @lv_timestamp_planned
+                tst_planned between @iv_timestamp_planned_from and @lv_timestamp_planned_to
+                " events with identical parameters will be processed only once,therefore sort by parahash
+               order by parahash
+                 .
 
-      if sy-subrc = 0. "open  cursor @gv_db_cursor_events for ...
+          if sy-subrc = 0. "open  cursor @gv_db_cursor_events for ...
 
 *        Update Delta-Timestamp
-        if ( iv_delta_mode = const_delta_mode_delta
-            or
-            iv_delta_mode = const_delta_mode_init
-           )
-            and iv_update_delta_timestamp = abap_true.
+            if ( iv_delta_mode = const_delta_mode_delta
+                or
+                iv_delta_mode = const_delta_mode_init
+               )
+                and iv_update_delta_timestamp = abap_true.
 
-          if iv_test_mode = abap_false.
+              if iv_test_mode = abap_false.
 
-            update_delta_timestamp(
-              exporting
-                iv_eventtype         = iv_event_type
-                it_resultgroups      = lt_resultgroups
-                iv_timestamp_planned = lv_timestamp_planned_to
-            ).
+                update_delta_timestamp(
+                  exporting
+                    iv_eventtype         = iv_event_type
+                    it_resultgroups      = lt_resultgroups
+                    iv_timestamp_planned = lv_timestamp_planned_to
+                ).
 
-          endif. "iv_test_mode = abap_false
+              endif. "iv_test_mode = abap_false
 
-        endif. "...
+            endif. "...
 
-      else. "sy-subrc = 0. "open  cursor @gv_db_cursor_events for ...
+          else. "sy-subrc = 0. "open  cursor @gv_db_cursor_events for ...
 
 *     no db-cursor -> no data & no packetising
-        ev_no_more_data = abap_true.
-        gv_packetising_is_active = abap_false.
-        return.
+            ev_no_more_data = abap_true.
+            gv_packetising_is_active = abap_false.
+            return.
 
-      endif. "sy-subrc = 0. "open  cursor @gv_db_cursor_events for ...
+          endif. "sy-subrc = 0. "open  cursor @gv_db_cursor_events for ...
 
-    endif."lv_open_cursor = abap_true
+        endif."lv_open_cursor = abap_true
 
 *==========================
 *    Fetch data
 
 *    determine package size
-    if iv_package_size is not initial.
-      lv_package_size = iv_package_size.
-    else.
-      lv_package_size = const_db_eventid_package_size.
-    endif.
-
-    check_debug_mode( ).
-
-
-    while gv_db_cursor_events is not initial.
-
-      fetch next cursor gv_db_cursor_events
-        into table lt_event_id
-        package size lv_package_size.
-
-      if    sy-subrc = 0.
-
-        ev_no_more_data = abap_false.
-*        set global variables
-        if iv_run_packetised = abap_true.
-          gv_packetising_is_active = abap_true.
+        if iv_package_size is not initial.
+          lv_package_size = iv_package_size.
         else.
-          gv_packetising_is_active = abap_false.
+          lv_package_size = const_db_eventid_package_size.
         endif.
+
+        check_debug_mode( ).
+
+
+        while gv_db_cursor_events is not initial.
+
+          fetch next cursor gv_db_cursor_events
+            into table lt_event_id
+            package size lv_package_size.
+
+          if    sy-subrc = 0.
+
+            ev_no_more_data = abap_false.
+*        set global variables
+            if iv_run_packetised = abap_true.
+              gv_packetising_is_active = abap_true.
+            else.
+              gv_packetising_is_active = abap_false.
+            endif.
 *        return table with event_id data
 *        is relevant for BW-Datasources:
 
@@ -2826,54 +2992,60 @@ class zcl_rulerunner implementation.
 *            index 1.
 *        endif.
 **        enhance event_id data from input variable data
-        loop at lt_event_id assigning <ls_event_id>.
-          if iv_delta_mode = abap_true.
-            <ls_event_id>-tst_delta = lv_timestamp_planned_to.
-          endif.
+            loop at lt_event_id assigning <ls_event_id>.
+              if iv_delta_mode = abap_true.
+                <ls_event_id>-tst_delta = lv_timestamp_planned_to.
+              endif.
 **            if one or more resultgroups are requested
 **            we transfer the first resultgroup
 **            that seems odd, but in a BW datasource only one resultgroup is allowed
 *          if <ls_resultgroups> is assigned.
 *            <ls_event_id>-resultgroup = <ls_resultgroups>-resultgroup.
 *          endif.
-        endloop.
-        append lines of lt_event_id  to  et_event_id.
+            endloop.
+            append lines of lt_event_id  to  et_event_id.
 *        ---------------------------------
 *        process brf-functions?
-        if eo_result_data is supplied.
+            if eo_result_data is supplied.
 **            need to process the events and return the result
 
 
 *        STep: Process all events in lt_event_id
-          process_multiple_eventids_int(
-            exporting
-              it_table_with_eventid      = lt_event_id
-              iv_update_timestamps       = iv_update_timestamps
-              iv_repeat_processing      =  iv_repeat_processing
-              iv_package_size           = lv_package_size
-              it_resultgroups     = lt_resultgroups
-            importing
-              eo_result_data             = eo_result_data
+              process_multiple_eventids_int(
+                exporting
+                  it_table_with_eventid      = lt_event_id
+                  iv_update_timestamps       = iv_update_timestamps
+                  iv_repeat_processing      =  iv_repeat_processing
+                  iv_package_size           = lv_package_size
+                  it_resultgroups     = lt_resultgroups
+                importing
+                  eo_result_data             = eo_result_data
 *          changing
 *            ct_brf_function_list       = lt_brf_function_list
-          ).
-        endif."eo_result_data is supplied
+              ).
+            endif."eo_result_data is supplied
 *        --------------------------------------------
 *        when packetising, we return after one fetch
-        if gv_packetising_is_active = abap_true.
-          return.
-        endif.
-      else."  sy-subrc = 0.
+            if gv_packetising_is_active = abap_true.
+              return.
+            endif.
+          else."  sy-subrc = 0.
 *        no more data -> end of packetising
-        ev_no_more_data = abap_true.
-        gv_packetising_is_active = abap_false.
-        close cursor gv_db_cursor_events.
-        return.
-      endif. "  sy-subrc = 0.
+            ev_no_more_data = abap_true.
+            gv_packetising_is_active = abap_false.
+            close cursor gv_db_cursor_events.
+            return.
+          endif. "  sy-subrc = 0.
 
-    endwhile."gv_db_cursor_events is not initial.
+        endwhile."gv_db_cursor_events is not initial.
 
+      catch cx_root.
 
+        raise exception type zcx_rulerunner
+          exporting
+            iv_message_text = 'Error while processing stored events'.
+
+    endtry.
   endmethod."process_stored_events
 
 
@@ -3031,20 +3203,26 @@ class zcl_rulerunner implementation.
     endif.
 
 
-
-    process_multiple_eventids_int(
-      exporting
-        it_table_with_eventid = it_table_with_eventid
-        iv_update_timestamps  = iv_update_timestamps
-        iv_repeat_processing  = iv_repeat_processing
-        iv_package_size       = iv_package_size
-        it_resultgroups = lt_resultgroups
-      importing
-        eo_result_data        = eo_result_data
+    try.
+        process_multiple_eventids_int(
+          exporting
+            it_table_with_eventid = it_table_with_eventid
+            iv_update_timestamps  = iv_update_timestamps
+            iv_repeat_processing  = iv_repeat_processing
+            iv_package_size       = iv_package_size
+            it_resultgroups = lt_resultgroups
+          importing
+            eo_result_data        = eo_result_data
 *      changing
 *        ct_brf_function_list  = lt_brf_function_list
-    ).
+        ).
+      catch cx_root.
 
+        raise exception type zcx_rulerunner
+          exporting
+            iv_message_text = 'Error while processing multiple events'.
+        return.
+    endtry.
 
   endmethod.
 
@@ -3207,33 +3385,41 @@ class zcl_rulerunner implementation.
           lo_wd_instance      type ref to if_fdt_wd_factory,
           lv_brf_component_id type zrulerun_functionid.
 
-    lo_wd_instance = cl_fdt_wd_factory=>get_instance( ).
-    lo_ui_exec = lo_wd_instance->get_ui_execution( ).
+
+    try.
+        lo_wd_instance = cl_fdt_wd_factory=>get_instance( ).
+        lo_ui_exec = lo_wd_instance->get_ui_execution( ).
 *   The if_fdt_wd_ui_execution interface has a function to call the workbench, optionally specifying an object using the IV_ID importing parameter.
 *break-point.
-    if iv_brf_component_id is initial.
+        if iv_brf_component_id is initial.
 
-      get_function_id(
-        exporting
-          iv_function_id      =  ''   " BRFplus: Function ID
-          iv_function_name    =    const_rulerun_brf_functionname " BRFplus Function Name
-          iv_application_name =     const_rulerun_brf_applicatname" BRFplus Application name
-        importing
-          ev_function_id      =  lv_brf_component_id   " BRFplus: Function ID
-      ).
+          get_function_id(
+            exporting
+              iv_function_id      =  ''   " BRFplus: Function ID
+              iv_function_name    =    const_rulerun_brf_functionname " BRFplus Function Name
+              iv_application_name =     const_rulerun_brf_applicatname" BRFplus Application name
+            importing
+              ev_function_id      =  lv_brf_component_id   " BRFplus: Function ID
+          ).
 
-    else.
-      lv_brf_component_id = iv_brf_component_id.
-    endif.
+        else.
+          lv_brf_component_id = iv_brf_component_id.
+        endif.
 
-    lo_ui_exec->execute_workbench(
-      exporting
-        iv_id           =  lv_brf_component_id   " ID
+        lo_ui_exec->execute_workbench(
+          exporting
+            iv_id           =  lv_brf_component_id   " ID
 *        iv_timestamp    =     " Timestamp
 *        iv_display_mode =     " Display Mode
-    )..
-
+        )..
+      catch cx_root.
+        raise exception type zcx_rulerunner
+          exporting
+            iv_message_text = 'Error while showing rr customizing'.
+        return.
+    endtry.
   endmethod.
+
   method select_for_all_entries_in.
 
 
@@ -3257,127 +3443,133 @@ class zcl_rulerunner implementation.
                    <lv_field_target>   type any,
                    <ls_et_result_data> type any.
 
+    try.
 *        Check inputs
-    if iv_select_from_table_name is initial.
-      return.
-    endif.
-    if it_for_all_entries_table  is initial.
-      return.
-    endif.
-    if iv_for_all_entries_tablename is initial.
-      return.
-    endif.
-    if iv_where_field_1_db is initial
-    or
-    iv_where_field_1_for_all is initial.
-      return.
-    endif.
+        if iv_select_from_table_name is initial.
+          return.
+        endif.
+        if it_for_all_entries_table  is initial.
+          return.
+        endif.
+        if iv_for_all_entries_tablename is initial.
+          return.
+        endif.
+        if iv_where_field_1_db is initial
+        or
+        iv_where_field_1_for_all is initial.
+          return.
+        endif.
 
 *   create dynamic data objects w/ flat structure for SQL Statement
 *    BRF+ generates nested structures for date-fields
-    "we need to create an internal table with flat fields
+        "we need to create an internal table with flat fields
 *        BRF-TAbles have complex structures
-    create data lrt_for_all type standard table of (iv_for_all_entries_tablename).
-    create data lrs_for_all type (iv_for_all_entries_tablename).
-    create data lrt_export type standard table of (iv_select_from_table_name).
-    "get reference of it_for_all_entries_table into lr_for_all.
-    assign lrt_for_all->* to <lt_for_all>.
-    assign lrs_for_all->* to <ls_lt_for_all>.
-    assign lrt_export->* to <lt_export>.
+        create data lrt_for_all type standard table of (iv_for_all_entries_tablename).
+        create data lrs_for_all type (iv_for_all_entries_tablename).
+        create data lrt_export type standard table of (iv_select_from_table_name).
+        "get reference of it_for_all_entries_table into lr_for_all.
+        assign lrt_for_all->* to <lt_for_all>.
+        assign lrs_for_all->* to <ls_lt_for_all>.
+        assign lrt_export->* to <lt_export>.
 
 
 *    break-point.
 
 *    transform it_for_all_entries_table into internal format ( flat)
-    loop at it_for_all_entries_table assigning <ls_it_for_all>.
+        loop at it_for_all_entries_table assigning <ls_it_for_all>.
 
 *     move-corresponding  <ls_it_for_all> to <ls_lt_for_all>."does not work due to nested structures of BRF
-      assign component iv_where_field_1_for_all of structure <ls_it_for_all> to <lv_field_source>.
-      assign component iv_where_field_1_for_all of structure <ls_lt_for_all> to <lv_field_target>.
-      <lv_field_target> = <lv_field_source>.
+          assign component iv_where_field_1_for_all of structure <ls_it_for_all> to <lv_field_source>.
+          assign component iv_where_field_1_for_all of structure <ls_lt_for_all> to <lv_field_target>.
+          <lv_field_target> = <lv_field_source>.
 *      2.field
-      if iv_where_field_2_db is supplied and iv_where_field_2_db is not initial
-        and iv_where_field_2_for_all is supplied and iv_where_field_2_for_all is not initial.
-        assign component iv_where_field_2_for_all of structure <ls_it_for_all> to <lv_field_source>.
-        assign component iv_where_field_2_for_all of structure <ls_lt_for_all> to <lv_field_target>.
-        <lv_field_target> = <lv_field_source>.
-      endif.
+          if iv_where_field_2_db is supplied and iv_where_field_2_db is not initial
+            and iv_where_field_2_for_all is supplied and iv_where_field_2_for_all is not initial.
+            assign component iv_where_field_2_for_all of structure <ls_it_for_all> to <lv_field_source>.
+            assign component iv_where_field_2_for_all of structure <ls_lt_for_all> to <lv_field_target>.
+            <lv_field_target> = <lv_field_source>.
+          endif.
 *      3.field
-      if iv_where_field_3_db is supplied and iv_where_field_3_db is not initial
-        and iv_where_field_3_for_all is supplied and iv_where_field_3_for_all is not initial.
-        assign component iv_where_field_3_for_all of structure <ls_it_for_all> to <lv_field_source>.
-        assign component iv_where_field_3_for_all of structure <ls_lt_for_all> to <lv_field_target>.
-        <lv_field_target> = <lv_field_source>.
-      endif.
+          if iv_where_field_3_db is supplied and iv_where_field_3_db is not initial
+            and iv_where_field_3_for_all is supplied and iv_where_field_3_for_all is not initial.
+            assign component iv_where_field_3_for_all of structure <ls_it_for_all> to <lv_field_source>.
+            assign component iv_where_field_3_for_all of structure <ls_lt_for_all> to <lv_field_target>.
+            <lv_field_target> = <lv_field_source>.
+          endif.
 *      4.field
-      if iv_where_field_4_db is supplied and iv_where_field_4_db is not initial
-        and iv_where_field_4_for_all is supplied and iv_where_field_4_for_all is not initial.
-        assign component iv_where_field_4_for_all of structure <ls_it_for_all> to <lv_field_source>.
-        assign component iv_where_field_4_for_all of structure <ls_lt_for_all> to <lv_field_target>.
-        <lv_field_target> = <lv_field_source>.
-      endif.
+          if iv_where_field_4_db is supplied and iv_where_field_4_db is not initial
+            and iv_where_field_4_for_all is supplied and iv_where_field_4_for_all is not initial.
+            assign component iv_where_field_4_for_all of structure <ls_it_for_all> to <lv_field_source>.
+            assign component iv_where_field_4_for_all of structure <ls_lt_for_all> to <lv_field_target>.
+            <lv_field_target> = <lv_field_source>.
+          endif.
 *      5.field
-      if iv_where_field_5_db is supplied and iv_where_field_5_db is not initial
-        and iv_where_field_5_for_all is supplied and iv_where_field_5_for_all is not initial.
-        assign component iv_where_field_5_for_all of structure <ls_it_for_all> to <lv_field_source>.
-        assign component iv_where_field_5_for_all of structure <ls_lt_for_all> to <lv_field_target>.
-        <lv_field_target> = <lv_field_source>.
-      endif.
+          if iv_where_field_5_db is supplied and iv_where_field_5_db is not initial
+            and iv_where_field_5_for_all is supplied and iv_where_field_5_for_all is not initial.
+            assign component iv_where_field_5_for_all of structure <ls_it_for_all> to <lv_field_source>.
+            assign component iv_where_field_5_for_all of structure <ls_lt_for_all> to <lv_field_target>.
+            <lv_field_target> = <lv_field_source>.
+          endif.
 
 
-      append <ls_lt_for_all> to <lt_for_all>.
-    endloop.
+          append <ls_lt_for_all> to <lt_for_all>.
+        endloop.
 
-    lv_select_from_table_name = iv_select_from_table_name.
-    condense lv_select_from_table_name no-gaps.
+        lv_select_from_table_name = iv_select_from_table_name.
+        condense lv_select_from_table_name no-gaps.
 
 *        create where condition into table lt_where_condition
 
 *    first condition
-    concatenate  iv_where_field_1_db ' = <lt_for_all>-' iv_where_field_1_for_all into lv_temp_string respecting blanks.
-    append lv_temp_string to lt_where_condition.
+        concatenate  iv_where_field_1_db ' = <lt_for_all>-' iv_where_field_1_for_all into lv_temp_string respecting blanks.
+        append lv_temp_string to lt_where_condition.
 
 *    second condition
-    if iv_where_field_2_db is supplied and iv_where_field_2_db is not initial
-        and iv_where_field_2_for_all is supplied and iv_where_field_2_for_all is not initial.
-      concatenate ' AND ' iv_where_field_2_db ' = <lt_for_all>-' iv_where_field_2_for_all into lv_temp_string respecting blanks.
-      append lv_temp_string to lt_where_condition.
-    endif.
+        if iv_where_field_2_db is supplied and iv_where_field_2_db is not initial
+            and iv_where_field_2_for_all is supplied and iv_where_field_2_for_all is not initial.
+          concatenate ' AND ' iv_where_field_2_db ' = <lt_for_all>-' iv_where_field_2_for_all into lv_temp_string respecting blanks.
+          append lv_temp_string to lt_where_condition.
+        endif.
 *    3' condition
-    if iv_where_field_3_db is supplied and iv_where_field_3_db is not initial
-        and iv_where_field_3_for_all is supplied and iv_where_field_3_for_all is not initial.
-      concatenate ' AND '  iv_where_field_3_db ' = <lt_for_all>-' iv_where_field_3_for_all into lv_temp_string respecting blanks.
-      append lv_temp_string to lt_where_condition.
-    endif.
+        if iv_where_field_3_db is supplied and iv_where_field_3_db is not initial
+            and iv_where_field_3_for_all is supplied and iv_where_field_3_for_all is not initial.
+          concatenate ' AND '  iv_where_field_3_db ' = <lt_for_all>-' iv_where_field_3_for_all into lv_temp_string respecting blanks.
+          append lv_temp_string to lt_where_condition.
+        endif.
 *    4' condition
-    if iv_where_field_4_db is supplied and iv_where_field_4_db is not initial
-        and iv_where_field_4_for_all is supplied and iv_where_field_4_for_all is not initial.
-      concatenate ' AND '  iv_where_field_4_db ' = <lt_for_all>-' iv_where_field_4_for_all into lv_temp_string respecting blanks.
-      append lv_temp_string to lt_where_condition.
-    endif.
+        if iv_where_field_4_db is supplied and iv_where_field_4_db is not initial
+            and iv_where_field_4_for_all is supplied and iv_where_field_4_for_all is not initial.
+          concatenate ' AND '  iv_where_field_4_db ' = <lt_for_all>-' iv_where_field_4_for_all into lv_temp_string respecting blanks.
+          append lv_temp_string to lt_where_condition.
+        endif.
 *    5' condition
-    if iv_where_field_5_db is supplied and iv_where_field_5_db is not initial
-        and iv_where_field_5_for_all is supplied and iv_where_field_5_for_all is not initial.
-      concatenate  ' AND ' iv_where_field_5_db ' = <lt_for_all>-' iv_where_field_5_for_all into lv_temp_string respecting blanks.
-      append lv_temp_string to lt_where_condition.
-    endif.
+        if iv_where_field_5_db is supplied and iv_where_field_5_db is not initial
+            and iv_where_field_5_for_all is supplied and iv_where_field_5_for_all is not initial.
+          concatenate  ' AND ' iv_where_field_5_db ' = <lt_for_all>-' iv_where_field_5_for_all into lv_temp_string respecting blanks.
+          append lv_temp_string to lt_where_condition.
+        endif.
 
 
 *    finally select data from DB
 
-    select * from (iv_select_from_table_name)
-    into table  <lt_export>
-    for all entries in <lt_for_all>
-    where (lt_where_condition).
+        select * from (iv_select_from_table_name)
+        into table  <lt_export>
+        for all entries in <lt_for_all>
+        where (lt_where_condition).
 
-    move_data_source_to_target(
-      exporting
-        io_source_data = <lt_export>
-      importing
-        eo_target_data = et_result_data
-    ).
+        move_data_source_to_target(
+          exporting
+            io_source_data = <lt_export>
+          importing
+            eo_target_data = et_result_data
+        ).
 
-
+      catch cx_root.
+        raise exception type zcx_rulerunner
+          exporting
+            iv_message_text = 'Error in select for all entries in'.
+        return.
+    endtry.
 
   endmethod.
 
@@ -3442,60 +3634,332 @@ class zcl_rulerunner implementation.
 
     if sy-subrc <> 0."read table gt_datamover_meta
 *        buffer read fails -> need to create metadata
-*      create_fieldmapping(
-*        exporting
-*          ir_source_data      = lr_source_data
-*          ir_target_data      = lr_target_data
-*        importing
-*          et_fieldmapping     = ls_datamover_meta-fieldmapping_t
-*          ev_type_kind_source = ls_datamover_meta-type_kind_source     " Type Kind: T-table,S-structure,E-element
-*          ev_type_kind_target = ls_datamover_meta-type_kind_target     " Type Kind: T-table,S-structure,E-element
-*          er_source_struc     =  ls_datamover_meta-ref_source_struc
-*          er_target_struc     =  ls_datamover_meta-ref_target_struc
-*      ).
-      break-point.
-      create_fieldmapping_new(
-        exporting
-          ir_source_data      = lr_source_data
-          ir_target_data      = lr_target_data
-        importing
-          et_fieldmapping     = ls_datamover_meta-fieldmapping_t
-          ev_type_kind_source = ls_datamover_meta-type_kind_source     " Type Kind: T-table,S-structure,E-element
-          ev_type_kind_target = ls_datamover_meta-type_kind_target     " Type Kind: T-table,S-structure,E-element
-          er_source_struc     =  ls_datamover_meta-ref_source_struc
-          er_target_struc     =  ls_datamover_meta-ref_target_struc
-      ).
 
-      ls_datamover_meta-source_abs_name  = lv_source_abs_name.
-      ls_datamover_meta-target_abs_name  = lv_target_abs_name.
-      insert ls_datamover_meta into table gt_datamover_meta.
+      try.
+          create_fieldmapping_new(
+            exporting
+              ir_source_data      = lr_source_data
+              ir_target_data      = lr_target_data
+            importing
+              et_fieldmapping     = ls_datamover_meta-fieldmapping_t
+              ev_type_kind_source = ls_datamover_meta-type_kind_source     " Type Kind: T-table,S-structure,E-element
+              ev_type_kind_target = ls_datamover_meta-type_kind_target     " Type Kind: T-table,S-structure,E-element
+              er_source_struc     =  ls_datamover_meta-ref_source_struc
+              er_target_struc     =  ls_datamover_meta-ref_target_struc
+          ).
+
+          ls_datamover_meta-source_abs_name  = lv_source_abs_name.
+          ls_datamover_meta-target_abs_name  = lv_target_abs_name.
+          insert ls_datamover_meta into table gt_datamover_meta.
+        catch cx_root .
+          raise exception type zcx_rulerunner
+            exporting
+              iv_message_text = 'Error while creating fieldmapping'.
+      endtry.
     endif. "sy-subrc <> 0."read table gt_datamover_meta
 
+    try.
 *      finally move the data
-    move_data_source_to_target_int(
-      exporting
-        io_source_data      = io_source_data
-        iv_type_kind_source = ls_datamover_meta-type_kind_source
-        iv_type_kind_target = ls_datamover_meta-type_kind_target
-        ir_source_struc     = ls_datamover_meta-ref_source_struc
-        ir_target_struc     = ls_datamover_meta-ref_target_struc
-      changing
-        ct_fieldmapping     = ls_datamover_meta-fieldmapping_t
-        co_target_data      = eo_target_data
-    ).
+        move_data_source_to_target_int(
+          exporting
+            io_source_data      = io_source_data
+            iv_type_kind_source = ls_datamover_meta-type_kind_source
+            iv_type_kind_target = ls_datamover_meta-type_kind_target
+            ir_source_struc     = ls_datamover_meta-ref_source_struc
+            ir_target_struc     = ls_datamover_meta-ref_target_struc
+          changing
+            ct_fieldmapping     = ls_datamover_meta-fieldmapping_t
+            co_target_data      = eo_target_data
+        ).
+      catch cx_root .
+        raise exception type zcx_rulerunner
+          exporting
+            iv_message_text = 'Error while moving data'.
+    endtry.
   endmethod.
 
 
   method get_rulerunner_version.
-  data: lv_version type tyv_version.
+    data: lv_version type tyv_version.
 
-    lv_version  = 'Main 0.8'.
+    lv_version  = 'Main 0.9'.
     append lv_version to et_versions.
-    lv_version  = 'BW 0.3'.
+    lv_version  = 'BW 0.4'.
     append lv_version to et_versions.
-    lv_version  = 'ODATA 0.1'.
+    lv_version  = 'ODATA 0.2'.
     append lv_version to et_versions.
 
+  endmethod.
+
+
+  method delete_events.
+************************************************************************
+*   Deletes Events from rulerunner database                            *
+*                                                                      *
+*  Programmer: Derk Rösler                                             *
+*  Date:       03 Dec 2018                                             *
+*                                                                      *
+************************************************************************
+
+    data:
+      lt_events_key              type standard table of tys_events_key,
+      ls_events_key              type tys_events_key,
+      lt_eventlog_key            type standard table of tys_eventlog_key,
+      ls_eventlog_key            type tys_events_key,
+      lv_continue_deletion       type abap_bool value 'X',
+      ls_messages                type line of tyt_messages,
+      lv_timestamp_planned       type zrulerun_timestamp_pla,
+      lt_range_timestamp_planned type tyt_range_timestamp,
+      ls_range_timestamp_planned type line of tyt_range_timestamp,
+      lv_package_size            type i.
+
+    field-symbols:
+      <ls_eventlog_key> type tys_eventlog_key,
+      <ls_events_key>   type tys_events_key.
+
+*    initialize messages
+    ls_messages-arbgb = 'ZRULERUNNER_MSG'.
+    ls_messages-msgty = 'I'.
+    call function 'MESSAGES_INITIALIZE'.
+
+
+
+*    Test Mode ?
+    if iv_test_mode = 'X'.
+      ls_messages-txtnr = 200.
+      lv_package_size = 0. "we need to select all relevant recs
+*      this may result in an memory overflow, in this case just do not use the test-mode
+    else.
+      ls_messages-txtnr = 215.
+      lv_package_size = 2000.
+    endif.
+    append ls_messages to et_messages.
+    if iv_display_messages = 'X'.
+      message_store( changing cs_message = ls_messages  ).
+    endif.
+
+
+*    planned events in the future?
+    if iv_delete_future_events = 'X'.
+*      we do not care about the selection criteria
+      lv_timestamp_planned = iv_timestamp_planned_max.
+    else.
+*      events in the future not allowed
+      if iv_timestamp_planned_max > gv_timestamp
+        or iv_timestamp_planned_max is initial.
+        lv_timestamp_planned = gv_timestamp.
+      else.
+        lv_timestamp_planned = iv_timestamp_planned_max.
+      endif.
+    endif.
+*    construct range tab
+    if lv_timestamp_planned is not initial.
+      ls_range_timestamp_planned-sign = 'I'.
+      ls_range_timestamp_planned-option = 'LT'.
+      ls_range_timestamp_planned-low = lv_timestamp_planned.
+      append ls_range_timestamp_planned to lt_range_timestamp_planned.
+    endif.
+
+
+
+*        get events from table zrulerun_events
+
+*    Step 1: determine already processed events via view zrulerun_vevlog
+
+
+*        get processed events from zrulerun_plog
+
+*        View zrulerun_vevlog contains only events
+*        that have been processed yet
+    try.
+
+        while lv_continue_deletion = 'X'.
+          clear lt_eventlog_key.
+          select
+            client
+             eventid
+             resultgroup
+             functionid
+
+          from
+              zrulerun_vevlog
+          into table
+              lt_eventlog_key
+          up to 2000 rows
+          where
+           eventid in it_range_event_id
+           and  eventtype in it_range_event_types
+           and  resultgroup in it_range_resultgroups
+           and  tst_processed in it_range_timestamp_processed
+           and tst_planned in lt_range_timestamp_planned
+           and tst_created in it_range_timestamp_created
+          group by
+            client
+             eventid
+             resultgroup
+             functionid  .
+
+          ls_messages-txtnr = 205.
+          ls_messages-msgv1 = sy-dbcnt.
+          ls_messages-msgv2 = 'ZRULERUN_PLOG'.
+          if sy-dbcnt = lv_package_size and sy-dbcnt is not initial.
+            lv_continue_deletion = 'X'.
+          else.
+            lv_continue_deletion = ''.
+          endif.
+          append ls_messages to et_messages.
+          if iv_display_messages = 'X'.
+            message_store( changing cs_message = ls_messages  ).
+          endif.
+
+*    !!!!! Deletion in DB Tables !!!!!1
+          if iv_test_mode ne 'X'.
+*          Step 1: delete from processing log
+            delete zrulerun_plog from table lt_eventlog_key.
+            ls_messages-txtnr = 220.
+            ls_messages-msgv1 = sy-dbcnt.
+            ls_messages-msgv2 = 'ZRULERUN_PLOG'.
+            append ls_messages to et_messages.
+            if iv_display_messages = 'X'.
+              message_store( changing cs_message = ls_messages  ).
+            endif.
+*        Step 2: delete from event table
+            loop at lt_eventlog_key  assigning <ls_eventlog_key>.
+              move-corresponding <ls_eventlog_key> to ls_events_key .
+              collect ls_events_key into lt_events_key.
+            endloop.
+
+            delete zrulerun_events from table lt_events_key.
+
+            ls_messages-txtnr = 220.
+            ls_messages-msgv1 = sy-dbcnt.
+            ls_messages-msgv2 = 'ZRULERUN_EVENTS'.
+            append ls_messages to et_messages.
+            if iv_display_messages = 'X'.
+              message_store( changing cs_message = ls_messages  ).
+            endif.
+*        --------------------
+            commit work.
+*        ---------------------
+          endif."iv_test_mode ne 'X'.
+        endwhile."lv_continue_deletion = 'X'.
+
+
+        if iv_delete_unprocessed_events = 'X'.
+*        we need to delete events in zrulerun_events that correspond to the selection criteria
+          lv_continue_deletion = 'X'.
+          while lv_continue_deletion = 'X'.
+            clear lt_events_key.
+
+*        DB-Select
+            select
+              client
+              eventid
+            from
+                zrulerun_events
+            into table
+                lt_events_key
+            up to lv_package_size rows
+            where
+             eventid in it_range_event_id
+             and  eventtype in it_range_event_types
+*         and  resultgroup in it_range_resultgroups
+*         and  tst_processed in it_range_timestamp_processed
+             and tst_created in it_range_timestamp_created
+             and tst_planned in lt_range_timestamp_planned
+            group by
+                client
+                eventid
+             .
+
+            ls_messages-txtnr = 205.
+            ls_messages-msgv1 = sy-dbcnt.
+            ls_messages-msgv2 = 'ZRULERUN_EVENTS'.
+            if sy-dbcnt = lv_package_size and sy-dbcnt is not initial.
+              lv_continue_deletion = 'X'.
+            else.
+              lv_continue_deletion = ''.
+            endif.
+
+            append ls_messages to et_messages.
+            if iv_display_messages = 'X'.
+              message_store( changing cs_message = ls_messages  ).
+            endif.
+            if iv_test_mode ne 'X'.
+              delete zrulerun_events from table lt_events_key.
+              ls_messages-txtnr = 220.
+              ls_messages-msgv1 = sy-dbcnt.
+              ls_messages-msgv2 = 'ZRULERUN_EVENTS'.
+              append ls_messages to et_messages.
+              if iv_display_messages = 'X'.
+                message_store( changing cs_message =  ls_messages  ).
+              endif.
+*        --------------------
+              commit work.
+*        ---------------------
+            endif."iv_test_mode ne 'X'.
+
+          endwhile. "lv_continue_deletion = 'X'.
+
+        endif."iv_delete_unprocessed_events = 'X'.
+
+        if iv_display_messages = 'X'.
+
+          call function 'MESSAGES_SHOW'
+            exporting
+              send_if_one        = space    " Message sent directly if number = 1
+              batch_list_type    = 'J'    " J = job log / L = in spool list / B = both
+              show_linno         = 'X'    " Also show line numbers
+              show_linno_text    = space    " Column header for row
+            exceptions
+              inconsistent_range = 1
+              no_messages        = 2
+              others             = 3.
+          if sy-subrc <> 0.
+
+          endif.
+        endif.
+
+      catch cx_root .
+        raise exception type zcx_rulerunner
+          exporting
+*           textid          =
+*           previous        =
+*           mt_message      =
+            iv_message_text = 'Error while deleting data'.
+
+    endtry.
+  endmethod.
+
+
+  method message_store.
+
+*  adjust line number
+    cs_message-zeile = cs_message-zeile  + 1.
+    shift cs_message-msgv1 left deleting leading space.
+    call function 'MESSAGE_STORE'
+      exporting
+        arbgb = cs_message-arbgb   " Message ID
+*       exception_if_not_active = 'X'    " X = exception not_active is initialized if
+        msgty = cs_message-msgty   " Type of message (I, S, W, E, A)
+        msgv1 = cs_message-msgv1    " First variable parameter of message
+        msgv2 = cs_message-msgv2    " Second variable parameter of message
+        msgv3 = cs_message-msgv3    " Third variable parameter of message
+        msgv4 = cs_message-msgv4    " Fourth variable parameter of message
+        txtnr = cs_message-txtnr    " Message Number
+*       zeile = SPACE    " Reference line (if it exists)
+*      importing
+*       act_severity            =     " Level of current message
+*       max_severity            =     " Maximum level of severity
+*      exceptions
+*       message_type_not_valid  = 1
+*       not_active              = 2
+*       others                  = 3
+      .
+    if sy-subrc <> 0.
+*     message id sy-msgid type sy-msgty number sy-msgno
+*                with sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    endif.
   endmethod.
 
 endclass.

@@ -26,6 +26,36 @@
      <MSGNR>115</MSGNR>
      <TEXT>Selection EVENTID is ignored in Delta-Mode</TEXT>
     </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRULERUNNER_MSG</ARBGB>
+     <MSGNR>200</MSGNR>
+     <TEXT>Delete Events: Test Mode only!</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRULERUNNER_MSG</ARBGB>
+     <MSGNR>205</MSGNR>
+     <TEXT>&amp;1 Records in Table &amp;2 will be deleted</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRULERUNNER_MSG</ARBGB>
+     <MSGNR>210</MSGNR>
+     <TEXT>&amp;1 records in table &amp;2 for Event-Type &amp;3 deleted.</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRULERUNNER_MSG</ARBGB>
+     <MSGNR>215</MSGNR>
+     <TEXT>Delete Events: Records will be deleted!</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZRULERUNNER_MSG</ARBGB>
+     <MSGNR>220</MSGNR>
+     <TEXT>&amp;1 Records in Table &amp;2 deleted</TEXT>
+    </T100>
    </T100>
   </asx:values>
  </asx:abap>
