@@ -238,7 +238,7 @@ FUNCTION ZRULERUN_GET_EVENTS.
         it_event_type_range        = lt_range_eventtype
 *        iv_resultgroup            = gv_resultgroup
 *    it_resultgroups           =
-        iv_update_timestamps      = 'X'
+        iv_update_processing_log      = 'X'
         iv_repeat_processing      = 'X'
         iv_update_delta_timestamp = 'X'
         iv_delta_mode               = gv_delta_mode
