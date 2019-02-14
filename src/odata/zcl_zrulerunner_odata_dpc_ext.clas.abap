@@ -37,19 +37,13 @@ class zcl_zrulerunner_odata_dpc_ext implementation.
       <ls_filter>     type /iwbep/s_mgw_select_option,
       <ls_filter_sel> type /iwbep/s_cod_select_option.
 
-*    break-point.
-
 *    ----------------------------------
 *    Step: Check Inputs
     check   iv_entity_name = 'rulerunnerKeyValue'.
     check iv_entity_set_name  = 'rulerunnerKeyValueSet'  .
 
-
-
 *    ----------------------------------
 *    Step: process filters
-
-
 
     loop at it_filter_select_options assigning <ls_filter>.
 *    all filters should be provided with option=EQ and sign = I

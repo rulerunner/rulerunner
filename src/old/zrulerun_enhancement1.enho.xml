@@ -23,14 +23,14 @@
       <item>*</item>
       <item>IF  fcode = &apos;WB_SELECT_OBJECT&apos;.</item>
       <item>.</item>
-      <item>*     Zielobjekt der Navigation bestimmen</item>
+      <item>*     get target object</item>
       <item>CALL METHOD editor-&gt;get_navigation_object</item>
       <item>EXPORTING</item>
       <item>*          P_CONTEXT    =</item>
       <item>p_operation  = swbm_c_op_display</item>
       <item>IMPORTING</item>
       <item>p_wb_request = wb_request.</item>
-      <item>&quot;Beim rulerunner die BRF starten</item>
+      <item>&quot;if target object = rulerunner then call BRFplus Workbench in a Webbrowser</item>
       <item>IF  wb_request-&gt;object_name = &apos;ZCL_RULERUNNER&apos;.</item>
       <item>zcl_rulerunner=&gt;show_rulerunner_customizing( ).</item>
       <item>ENDIF.</item>

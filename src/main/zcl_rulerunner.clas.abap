@@ -232,7 +232,7 @@ class zcl_rulerunner definition
 *        !iv_brf_function_name3     type tyv_function_name optional
                 !iv_resultgroup            type zrulerun_resultgroup optional
                 !it_resultgroups           type tyts_resultgroups optional
-                iv_update_timestamps       type abap_bool
+                iv_update_processing_log   type abap_bool
                 iv_repeat_processing       type abap_bool "already processed events are repeated
                 iv_update_delta_timestamp  type abap_bool
                 iv_delta_mode              type tyv_delta_mode
@@ -249,21 +249,21 @@ class zcl_rulerunner definition
     class-methods process_multiple_eventids
       importing
 *        !it_event_id          type tyt_event_id
-                it_table_with_eventid type any table
+                it_table_with_eventid    type any table
 *        !it_brf_function_list type tyth_function_list optional
-                iv_update_timestamps  type abap_bool default 'X'
-                iv_repeat_processing  type abap_bool
-                iv_package_size       type i
+                iv_update_processing_log type abap_bool default 'X'
+                iv_repeat_processing     type abap_bool
+                iv_package_size          type i
 *        !iv_brf_application_name1 type tyv_application_name optional
 *        !iv_brf_function_name1    type tyv_function_name optional
 *        !iv_brf_application_name2 type tyv_application_name optional
 *        !iv_brf_function_name2    type tyv_function_name optional
 *        !iv_brf_application_name3 type tyv_application_name optional
 *        !iv_brf_function_name3    type tyv_function_name optional
-                iv_resultgroup        type zrulerun_resultgroup optional
-                it_resultgroups       type tyts_resultgroups optional
+                iv_resultgroup           type zrulerun_resultgroup optional
+                it_resultgroups          type tyts_resultgroups optional
       exporting
-                eo_result_data        type any
+                eo_result_data           type any
 *      changing
 *         ct_brf_function_list       type tyth_function_list optional
       raising   zcx_rulerunner.
@@ -442,14 +442,14 @@ class zcl_rulerunner definition
     class-methods process_multiple_eventids_int
       importing
 *        !it_event_id          type tyt_event_id
-        it_table_with_eventid type any table
-        it_resultgroups       type tyts_resultgroups
+        it_table_with_eventid    type any table
+        it_resultgroups          type tyts_resultgroups
 *        !it_brf_function_list type tyth_function_list optional
-        iv_update_timestamps  type abap_bool default 'X'
-        iv_repeat_processing  type abap_bool
-        iv_package_size       type i
+        iv_update_processing_log type abap_bool default 'X'
+        iv_repeat_processing     type abap_bool
+        iv_package_size          type i
       exporting
-        eo_result_data        type any
+        eo_result_data           type any
 *        et_processed_events   type tyth_event_id
 *      changing
 *        ct_brf_function_list  type tyth_function_list optional
@@ -526,7 +526,7 @@ class zcl_rulerunner implementation.
   method add_event.
 
 ************************************************************************
-*   Add an Event to the RuleRunner Framework                           *
+*   Add an Event to the rulerunner Framework                           *
 *                                                                      *
 *  Programmer: Derk Rösler                                             *
 *  Date:       23th April 2018                                         *
@@ -2521,7 +2521,7 @@ class zcl_rulerunner implementation.
 *    Debugging?
       zcl_rulerunner=>check_debug_mode( ).
 
-      if iv_update_timestamps = abap_true.
+      if iv_update_processing_log = abap_true.
 
         zcl_rulerunner=>update_processing_log(
          exporting
@@ -2618,7 +2618,7 @@ class zcl_rulerunner implementation.
           ca_data = lt_parameters.
     endif.
 
-** Step: generate BRF-function context using RuleRunner Parameter Table
+** Step: generate BRF-function context using rulerunner Parameter Table
 *    ls_brf_context_values-name = const_rulerun_brf_context_name.
 *
 *    get reference of lt_parameters into lr_brf_context_values.
@@ -2639,7 +2639,7 @@ class zcl_rulerunner implementation.
 *        Note: <ls_meta_eventtype>-functions_t contains only relevant functions
 *        according to the required resultgroups in it_resultgroups
 
-**  check that RuleRunner-Parameter table GT_RULERUNNER (Key Value) is part of brf-function  context
+**  check that rulerunner-Parameter table GT_RULERUNNER (Key Value) is part of brf-function  context
 *      read table <ls_function_meta>-context_t with table key id = const_rulerun_brf_context_id
 *        transporting no fields.
 *      if sy-subrc <> 0.
@@ -2747,7 +2747,7 @@ class zcl_rulerunner implementation.
 *   1. Results of this method:
 *       1a. if eo_result_data is supplied then the BRF functioncs are executed
 *            and the results are exported.
-*           This option is useful in Non BW Environments, when RuleRunner is consumed in ABAP
+*           This option is useful in Non BW Environments, when rulerunner is consumed in ABAP
 *       1b. if et_event_id is supplied then all event_id data according to selection criteria are provided
 *   2. Calling Options: iv_run_packetised
 *       2.a. iv_run_packetised = true:
@@ -2773,7 +2773,8 @@ class zcl_rulerunner implementation.
           lt_resultgroups           type tyts_resultgroups,
           ls_resultgroups           type tys_resultgroups,
           lt_range_event_types      type tyt_range_event_types,
-          ls_range_event_types      type line of tyt_range_event_types.
+          ls_range_event_types      type line of tyt_range_event_types,
+          lv_update_processing_log  type abap_bool.
 
     field-symbols:
       <ls_event_id>     type tys_event_id,
@@ -2925,7 +2926,7 @@ class zcl_rulerunner implementation.
 
           if sy-subrc = 0. "open  cursor @gv_db_cursor_events for ...
 
-*        Update Delta-Timestamp
+*           Update Delta-Timestamp
             if ( iv_delta_mode = const_delta_mode_delta
                 or
                 iv_delta_mode = const_delta_mode_init
@@ -2944,6 +2945,15 @@ class zcl_rulerunner implementation.
               endif. "iv_test_mode = abap_false
 
             endif. "...
+
+*           Test Mode -> no update of processing log
+            if iv_test_mode = abap_false.
+*                no test
+              lv_update_processing_log = iv_update_processing_log.
+            else.
+*                test mode -> no update
+              lv_update_processing_log = abap_false.
+            endif.
 
           else. "sy-subrc = 0. "open  cursor @gv_db_cursor_events for ...
 
@@ -3014,7 +3024,7 @@ class zcl_rulerunner implementation.
               process_multiple_eventids_int(
                 exporting
                   it_table_with_eventid      = lt_event_id
-                  iv_update_timestamps       = iv_update_timestamps
+                  iv_update_processing_log       = lv_update_processing_log
                   iv_repeat_processing      =  iv_repeat_processing
                   iv_package_size           = lv_package_size
                   it_resultgroups     = lt_resultgroups
@@ -3079,7 +3089,7 @@ class zcl_rulerunner implementation.
 
 * Summary:
 *    Method updates the processing log for events that are stored in table zrulerun_events
-*    When executing multiple events RuleRunner checks for Events with identical parameters.
+*    When executing multiple events rulerunner checks for Events with identical parameters.
 *       Events with identical parameters are executed only once!!!
 *       But the PLOG must be updated also for events that have been skipped
 *    it_event_data: contains eventid's that must be updated in PLOG
@@ -3207,7 +3217,7 @@ class zcl_rulerunner implementation.
         process_multiple_eventids_int(
           exporting
             it_table_with_eventid = it_table_with_eventid
-            iv_update_timestamps  = iv_update_timestamps
+            iv_update_processing_log  = iv_update_processing_log
             iv_repeat_processing  = iv_repeat_processing
             iv_package_size       = iv_package_size
             it_resultgroups = lt_resultgroups
