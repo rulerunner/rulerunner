@@ -516,11 +516,11 @@ class zcl_rulerunner definition
 
 
 
-endclass.
+ENDCLASS.
 
 
 
-class zcl_rulerunner implementation.
+CLASS ZCL_RULERUNNER IMPLEMENTATION.
 
 
   method add_event.
@@ -1007,286 +1007,6 @@ class zcl_rulerunner implementation.
     endloop.
 
   endmethod.
-  method create_fieldmapping_new.
-
-************************************************************************
-*                                                                      *
-*  Creates a Field by Field Mapping between Source and Target          *
-*                                                                      *
-*  created: 31th August 2018                                            *
-*   : Performance Enhancement                             *
-*         ET_Fieldmapping contains DataRefs to each source&target field
-*          of structures ER_SOURCE_STRUC & ER_TARGET_STRUC.
-*          ER_SOURCE_STRUC & ER_TARGET_STRUC (and there corresponding field refs in et_fieldmapping)
-*          are directly used when transforming data.
-*          This avoids the much slower "assign component x of structure y to"
-************************************************************************
-
-*    break-point.
-    data:
-*          lo_typedescr          type ref to cl_abap_typedescr,
-      lo_elemdescr           type ref to cl_abap_elemdescr,
-*          lo_structdescr        type ref to cl_abap_structdescr,
-*          lo_tabledescr         type ref to cl_abap_tabledescr,
-      lt_components_source   type tyt_components_extended,
-      lt_components_target   type tyt_components_extended,
-      ls_fieldmapping        type tys_fieldmapping,
-      lt_fieldmapping_source type sorted table of tys_fieldmapping with unique key s_name s_subname,
-*      lv_typekind_source     type tyv_type_kind,
-*      lv_typekind_target     type tyv_type_kind,
-      lv_position_target     type i,
-      lv_position_source     type i,
-      lv_source_name_memory  type string,
-      lv_fieldname_string    type string,
-
-      lrs_target_data        type ref to data,
-      lrs_source_data        type ref to data.
-
-    field-symbols:
-      <ls_components_source>   type line of tyt_components_extended,
-      <ls_components_target>   type line of tyt_components_extended,
-*      <lo_source_data>       type any,
-      <lt_source_data>         type any table,
-      <lt_target_data>         type any table,
-      <ls_source_data>         type any,
-      <ls_target_data>         type any,
-      <lv_source_value>        type any,
-      <lv_target_value>        type any,
-      <ls_et_fieldmapping>     type tys_fieldmapping,
-      <ls_fieldmapping_source> type tys_fieldmapping.
-
-*    break-point.
-
-*Step:  checks and inits
-    clear et_fieldmapping.
-    if ir_source_data is not bound
-      or ir_target_data is not bound.
-      return.
-    endif.
-
-
-
-*Step: get type descriptions Source+Target
-
-*    Source
-    call method zcl_rulerunner=>get_type_description
-      exporting
-        ir_dataref    = ir_source_data
-      importing
-        et_components = lt_components_source
-        ev_type_kind  = ev_type_kind_source.
-*    create data reference to source structure
-    case ev_type_kind_source.
-      when 'S'.
-        er_source_struc = ir_source_data.
-      when 'T'.
-        assign ir_source_data->* to <lt_source_data>.
-        create data lrs_source_data like line of <lt_source_data>.
-        er_source_struc = lrs_source_data.
-    endcase.
-
-
-*    target
-    call method zcl_rulerunner=>get_type_description
-      exporting
-        ir_dataref    = ir_target_data
-      importing
-        et_components = lt_components_target
-        ev_type_kind  = ev_type_kind_target.
-*    create data reference to source structure
-    case ev_type_kind_target.
-      when 'S'.
-        er_target_struc = ir_target_data.
-      when 'T'.
-        assign ir_target_data->* to <lt_target_data>.
-        create data lrs_target_data like line of <lt_target_data>.
-        er_target_struc = lrs_target_data.
-    endcase.
-
-
-
-
-*STep: check possible combinations
-    case ev_type_kind_source.
-      when 'E'.
-        if ev_type_kind_target <> 'E'.
-*    ####ToDo####: add a logic that casts data
-          raise exception type zcx_rulerunner.
-        endif.
-      when 'S'.
-        if ev_type_kind_target = 'E'.
-*    ####ToDo####: look for target-datatyp in source and assign values
-          raise exception type zcx_rulerunner.
-        endif.
-      when 'T'.
-        if ev_type_kind_target = 'E'.
-*    ####ToDo####: look for target-datatyp in source and assign values
-          raise exception type zcx_rulerunner.
-        endif.
-      when others.
-*    ####ToDo####: add message or replace by method call
-        raise exception type zcx_rulerunner.
-
-    endcase.
-
-
-*Step: Add Target fields to Mapping table
-
-*    break-point.
-    loop at lt_components_target assigning <ls_components_target>.
-      clear ls_fieldmapping.
-*      fill target details
-      ls_fieldmapping-t_parent_type    = ev_type_kind_target.
-      ls_fieldmapping-t_name         = <ls_components_target>-name.
-      ls_fieldmapping-t_subname     = <ls_components_target>-subname.
-      clear lo_elemdescr.
-
-      if <ls_components_target>-type is bound.
-        lo_elemdescr ?= <ls_components_target>-type.
-        ls_fieldmapping-t_absolute_name = lo_elemdescr->absolute_name.
-        ls_fieldmapping-t_type_kind      = lo_elemdescr->type_kind.
-        ls_fieldmapping-t_length        = lo_elemdescr->length.
-        ls_fieldmapping-t_decimals       = lo_elemdescr->decimals.
-        ls_fieldmapping-t_output_length  = lo_elemdescr->output_length.
-        ls_fieldmapping-t_help_id        = lo_elemdescr->help_id.
-        ls_fieldmapping-t_edit_mask       = lo_elemdescr->edit_mask.
-      endif.
-
-
-      if <ls_components_target>-subname is  initial.
-        lv_position_target = lv_position_target + 1.
-      endif.
-      ls_fieldmapping-t_position      = lv_position_target. "in target structure
-
-      insert ls_fieldmapping into table et_fieldmapping.
-
-    endloop. "at lt_components_target assigning <ls_components_target>.
-
-
-*Step: Add Source fields to temporary Mapping table
-
-*    break-point.
-    loop at lt_components_source assigning <ls_components_source>.
-      clear ls_fieldmapping.
-*      fill target details
-      ls_fieldmapping-s_parent_type    = ev_type_kind_source.
-      ls_fieldmapping-s_name         = <ls_components_source>-name.
-      ls_fieldmapping-s_subname     = <ls_components_source>-subname.
-      clear lo_elemdescr.
-
-      if <ls_components_source>-type is bound.
-        lo_elemdescr ?= <ls_components_source>-type.
-        ls_fieldmapping-s_absolute_name = lo_elemdescr->absolute_name.
-        ls_fieldmapping-s_type_kind      = lo_elemdescr->type_kind.
-        ls_fieldmapping-s_length        = lo_elemdescr->length.
-        ls_fieldmapping-s_decimals       = lo_elemdescr->decimals.
-        ls_fieldmapping-s_output_length  = lo_elemdescr->output_length.
-        ls_fieldmapping-s_help_id        = lo_elemdescr->help_id.
-        ls_fieldmapping-s_edit_mask       = lo_elemdescr->edit_mask.
-      endif.
-
-
-      if <ls_components_source>-subname is  initial.
-        lv_position_source = lv_position_source + 1.
-      endif.
-      ls_fieldmapping-s_position      = lv_position_source. "in target structure
-
-      insert ls_fieldmapping into table lt_fieldmapping_source.
-
-    endloop. "at lt_components_source assigning <ls_components_source>.
-
-
-*STep: For each target field we need to find a corresponding source field
-*-----------------------------------------------------------------
-*    try to find an appropriate source field
-*    et_fieldmapping contains target fields including position in structure
-*    lt_fieldmapping_source contains source fields including position in structure
-    loop at et_fieldmapping assigning <ls_et_fieldmapping>.
-
-*       ####ToDo####: implement a more sophisticated comparison
-*              e.g. ignore "/BIC/" "/BI0/" prefixes
-*                  ignore leading zer0
-
-
-      loop at lt_fieldmapping_source assigning <ls_fieldmapping_source>
-      where  s_name = <ls_et_fieldmapping>-t_name.
-*            check wether typekinds are identical or no subnames
-        if  (
-                <ls_fieldmapping_source>-s_subname is initial and  <ls_et_fieldmapping>-t_subname is initial
-            )
-            or
-            (
-                <ls_fieldmapping_source>-s_type_kind = <ls_et_fieldmapping>-t_type_kind
-            ).
-*            this is the correct sourcefield
-*            -> fill sourcefield-properties in target-record
-          <ls_et_fieldmapping>-s_parent_type =    <ls_fieldmapping_source>-s_parent_type.
-*          concatenate <ls_fieldmapping_source>-s_name
-*          '-' <ls_fieldmapping_source>-s_subname
-*          into <ls_et_fieldmapping>-s_name.
-          <ls_et_fieldmapping>-s_name =    <ls_fieldmapping_source>-s_name .
-          <ls_et_fieldmapping>-s_subname =    <ls_fieldmapping_source>-s_subname  .
-          <ls_et_fieldmapping>-s_absolute_name =    <ls_fieldmapping_source>-s_absolute_name  .
-          <ls_et_fieldmapping>-s_type_kind =    <ls_fieldmapping_source>-s_type_kind.
-          <ls_et_fieldmapping>-s_length =    <ls_fieldmapping_source>-s_length.
-          <ls_et_fieldmapping>-s_decimals =    <ls_fieldmapping_source>-s_decimals .
-          <ls_et_fieldmapping>-s_output_length =    <ls_fieldmapping_source>-s_output_length .
-          <ls_et_fieldmapping>-s_help_id =    <ls_fieldmapping_source>-s_help_id  .
-          <ls_et_fieldmapping>-s_edit_mask =    <ls_fieldmapping_source>-s_edit_mask .
-          <ls_et_fieldmapping>-s_position =    <ls_fieldmapping_source>-s_position.
-*        add data references to target and source field to ls_fieldmapping
-          "source
-          if ev_type_kind_source ca 'ST'.
-            unassign <lv_source_value>.
-            assign er_source_struc->* to <ls_source_data>.
-            if <ls_et_fieldmapping>-s_subname is initial.
-              lv_fieldname_string = <ls_et_fieldmapping>-s_name.
-            else.
-              concatenate <ls_et_fieldmapping>-s_name '-' <ls_et_fieldmapping>-s_subname into lv_fieldname_string.
-            endif.
-            assign component lv_fieldname_string of structure <ls_source_data> to <lv_source_value>.
-*            <lv_source_value> = sy-tabix.
-            if sy-subrc = 0.
-              get reference of <lv_source_value> into <ls_et_fieldmapping>-s_ref_value.
-            endif.
-          endif.
-          "target
-          if ev_type_kind_target ca 'ST'.
-            unassign <lv_target_value>.
-            assign er_target_struc->* to <ls_target_data>.
-            if <ls_et_fieldmapping>-t_subname is initial.
-              lv_fieldname_string = <ls_et_fieldmapping>-t_name.
-            else.
-              concatenate <ls_et_fieldmapping>-t_name '-' <ls_et_fieldmapping>-t_subname  into lv_fieldname_string.
-            endif.
-            assign component lv_fieldname_string of structure <ls_target_data> to <lv_target_value>.
-*            <lv_target_value> = sy-tabix.
-            if sy-subrc = 0.
-              get reference of <lv_target_value> into <ls_et_fieldmapping>-t_ref_value.
-            endif.
-          endif.
-        endif."<ls_fieldmapping_source>-s_type_kind = <ls_et_fieldmapping>-t_type_kind.
-      endloop."at lt_fieldmapping_source assigning <ls_fieldmapping_source>
-
-
-
-    endloop."at et_fieldmapping assigning <ls_et_fieldmapping>.
-
-*remove target fields w/o source assignment
-    delete et_fieldmapping where s_name is initial.
-*delete position for nested fields
-
-    loop at et_fieldmapping assigning <ls_et_fieldmapping>.
-      if <ls_et_fieldmapping>-t_subname is not initial.
-        clear <ls_et_fieldmapping>-t_position.
-      endif.
-      if <ls_et_fieldmapping>-s_subname is not initial.
-        clear <ls_et_fieldmapping>-s_position.
-      endif.
-    endloop.
-
-
-  endmethod. "create_fieldmapping_new
 
 
   method create_fieldmapping.
@@ -1564,6 +1284,323 @@ class zcl_rulerunner implementation.
   endmethod.
 
 
+  method create_fieldmapping_new.
+
+************************************************************************
+*                                                                      *
+*  Creates a Field by Field Mapping between Source and Target          *
+*                                                                      *
+*  created: 31th August 2018                                            *
+*   : Performance Enhancement                             *
+*         ET_Fieldmapping contains DataRefs to each source&target field
+*          of structures ER_SOURCE_STRUC & ER_TARGET_STRUC.
+*          ER_SOURCE_STRUC & ER_TARGET_STRUC (and there corresponding field refs in et_fieldmapping)
+*          are directly used when transforming data.
+*          This avoids the much slower "assign component x of structure y to"
+*  changes:
+*           10th August 2020: Transfer BRF Timepoint Types to target issue#161
+************************************************************************
+
+*    break-point.
+    data:
+*          lo_typedescr          type ref to cl_abap_typedescr,
+      lo_elemdescr           type ref to cl_abap_elemdescr,
+*          lo_structdescr        type ref to cl_abap_structdescr,
+*          lo_tabledescr         type ref to cl_abap_tabledescr,
+      lt_components_source   type tyt_components_extended,
+      lt_components_target   type tyt_components_extended,
+      ls_fieldmapping        type tys_fieldmapping,
+      lt_fieldmapping_source type sorted table of tys_fieldmapping with unique key s_name s_subname,
+*      lv_typekind_source     type tyv_type_kind,
+*      lv_typekind_target     type tyv_type_kind,
+      lv_position_target     type i,
+      lv_position_source     type i,
+      lv_source_name_memory  type string,
+      lv_fieldname_string    type string,
+
+      lrs_target_data        type ref to data,
+      lrs_source_data        type ref to data.
+
+    field-symbols:
+      <ls_components_source>   type line of tyt_components_extended,
+      <ls_components_target>   type line of tyt_components_extended,
+*      <lo_source_data>       type any,
+      <lt_source_data>         type any table,
+      <lt_target_data>         type any table,
+      <ls_source_data>         type any,
+      <ls_target_data>         type any,
+      <lv_source_value>        type any,
+      <lv_target_value>        type any,
+      <ls_et_fieldmapping>     type tys_fieldmapping,
+      <ls_fieldmapping_source> type tys_fieldmapping.
+
+*    break-point.
+
+*Step:  checks and inits
+    clear et_fieldmapping.
+    if ir_source_data is not bound
+      or ir_target_data is not bound.
+      return.
+    endif.
+
+
+
+*Step: get type descriptions Source+Target
+
+*    Source
+    call method zcl_rulerunner=>get_type_description
+      exporting
+        ir_dataref    = ir_source_data
+      importing
+        et_components = lt_components_source
+        ev_type_kind  = ev_type_kind_source.
+*    create data reference to source structure
+    case ev_type_kind_source.
+      when 'S'.
+        er_source_struc = ir_source_data.
+      when 'T'.
+        assign ir_source_data->* to <lt_source_data>.
+        create data lrs_source_data like line of <lt_source_data>.
+        er_source_struc = lrs_source_data.
+    endcase.
+
+
+*    target
+    call method zcl_rulerunner=>get_type_description
+      exporting
+        ir_dataref    = ir_target_data
+      importing
+        et_components = lt_components_target
+        ev_type_kind  = ev_type_kind_target.
+*    create data reference to source structure
+    case ev_type_kind_target.
+      when 'S'.
+        er_target_struc = ir_target_data.
+      when 'T'.
+        assign ir_target_data->* to <lt_target_data>.
+        create data lrs_target_data like line of <lt_target_data>.
+        er_target_struc = lrs_target_data.
+    endcase.
+
+
+
+
+*STep: check possible combinations
+    case ev_type_kind_source.
+      when 'E'.
+        if ev_type_kind_target <> 'E'.
+*    ####ToDo####: add a logic that casts data
+          raise exception type zcx_rulerunner.
+        endif.
+      when 'S'.
+        if ev_type_kind_target = 'E'.
+*    ####ToDo####: look for target-datatyp in source and assign values
+          raise exception type zcx_rulerunner.
+        endif.
+      when 'T'.
+        if ev_type_kind_target = 'E'.
+*    ####ToDo####: look for target-datatyp in source and assign values
+          raise exception type zcx_rulerunner.
+        endif.
+      when others.
+*    ####ToDo####: add message or replace by method call
+        raise exception type zcx_rulerunner.
+
+    endcase.
+
+
+*Step: Add Target fields to Mapping table
+
+*    break-point.
+    loop at lt_components_target assigning <ls_components_target>.
+      clear ls_fieldmapping.
+*      fill target details
+      ls_fieldmapping-t_parent_type    = ev_type_kind_target.
+      ls_fieldmapping-t_name         = <ls_components_target>-name.
+      ls_fieldmapping-t_subname     = <ls_components_target>-subname.
+      clear lo_elemdescr.
+
+      if <ls_components_target>-type is bound.
+        lo_elemdescr ?= <ls_components_target>-type.
+        ls_fieldmapping-t_absolute_name = lo_elemdescr->absolute_name.
+        ls_fieldmapping-t_type_kind      = lo_elemdescr->type_kind.
+        ls_fieldmapping-t_length        = lo_elemdescr->length.
+        ls_fieldmapping-t_decimals       = lo_elemdescr->decimals.
+        ls_fieldmapping-t_output_length  = lo_elemdescr->output_length.
+        ls_fieldmapping-t_help_id        = lo_elemdescr->help_id.
+        ls_fieldmapping-t_edit_mask       = lo_elemdescr->edit_mask.
+      endif.
+
+
+      if <ls_components_target>-subname is  initial.
+        lv_position_target = lv_position_target + 1.
+      endif.
+      ls_fieldmapping-t_position      = lv_position_target. "in target structure
+
+      insert ls_fieldmapping into table et_fieldmapping.
+
+    endloop. "at lt_components_target assigning <ls_components_target>.
+
+
+*Step: Add Source fields to temporary Mapping table
+
+*    break-point.
+    loop at lt_components_source assigning <ls_components_source>.
+      clear ls_fieldmapping.
+*      fill target details
+      ls_fieldmapping-s_parent_type    = ev_type_kind_source.
+      ls_fieldmapping-s_name         = <ls_components_source>-name.
+      ls_fieldmapping-s_subname     = <ls_components_source>-subname.
+      clear lo_elemdescr.
+
+      if <ls_components_source>-type is bound.
+        lo_elemdescr ?= <ls_components_source>-type.
+        ls_fieldmapping-s_absolute_name = lo_elemdescr->absolute_name.
+        ls_fieldmapping-s_type_kind      = lo_elemdescr->type_kind.
+        ls_fieldmapping-s_length        = lo_elemdescr->length.
+        ls_fieldmapping-s_decimals       = lo_elemdescr->decimals.
+        ls_fieldmapping-s_output_length  = lo_elemdescr->output_length.
+        ls_fieldmapping-s_help_id        = lo_elemdescr->help_id.
+        ls_fieldmapping-s_edit_mask       = lo_elemdescr->edit_mask.
+      endif.
+
+
+      if <ls_components_source>-subname is  initial.
+        lv_position_source = lv_position_source + 1.
+      endif.
+      ls_fieldmapping-s_position      = lv_position_source. "in target structure
+
+      insert ls_fieldmapping into table lt_fieldmapping_source.
+
+    endloop. "at lt_components_source assigning <ls_components_source>.
+
+
+*STep: For each target field we need to find a corresponding source field
+*-----------------------------------------------------------------
+*    try to find an appropriate source field
+*    et_fieldmapping contains target fields including position in structure
+*    lt_fieldmapping_source contains source fields including position in structure
+    loop at et_fieldmapping assigning <ls_et_fieldmapping>.
+
+*       ####ToDo####: implement a more sophisticated comparison
+*              e.g. ignore "/BIC/" "/BI0/" prefixes
+*                  ignore leading zer0
+
+
+      loop at lt_fieldmapping_source assigning <ls_fieldmapping_source>
+      where  s_name = <ls_et_fieldmapping>-t_name.
+*            check wether typekinds are identical or no subnames
+        if  (
+                <ls_fieldmapping_source>-s_subname is initial and  <ls_et_fieldmapping>-t_subname is initial
+            )
+            or
+            (
+                <ls_fieldmapping_source>-s_type_kind = <ls_et_fieldmapping>-t_type_kind
+            ).
+*            this is the correct sourcefield
+*            -> fill sourcefield-properties in target-record
+          <ls_et_fieldmapping>-s_parent_type =    <ls_fieldmapping_source>-s_parent_type.
+*          concatenate <ls_fieldmapping_source>-s_name
+*          '-' <ls_fieldmapping_source>-s_subname
+*          into <ls_et_fieldmapping>-s_name.
+          <ls_et_fieldmapping>-s_name =    <ls_fieldmapping_source>-s_name .
+          <ls_et_fieldmapping>-s_subname =    <ls_fieldmapping_source>-s_subname  .
+          <ls_et_fieldmapping>-s_absolute_name =    <ls_fieldmapping_source>-s_absolute_name  .
+          <ls_et_fieldmapping>-s_type_kind =    <ls_fieldmapping_source>-s_type_kind.
+          <ls_et_fieldmapping>-s_length =    <ls_fieldmapping_source>-s_length.
+          <ls_et_fieldmapping>-s_decimals =    <ls_fieldmapping_source>-s_decimals .
+          <ls_et_fieldmapping>-s_output_length =    <ls_fieldmapping_source>-s_output_length .
+          <ls_et_fieldmapping>-s_help_id =    <ls_fieldmapping_source>-s_help_id  .
+          <ls_et_fieldmapping>-s_edit_mask =    <ls_fieldmapping_source>-s_edit_mask .
+          <ls_et_fieldmapping>-s_position =    <ls_fieldmapping_source>-s_position.
+*        add data references to target and source field to ls_fieldmapping
+          "source
+          if ev_type_kind_source ca 'ST'.
+            unassign <lv_source_value>.
+            assign er_source_struc->* to <ls_source_data>.
+            if <ls_et_fieldmapping>-s_subname is initial.
+              lv_fieldname_string = <ls_et_fieldmapping>-s_name.
+            else.
+              concatenate <ls_et_fieldmapping>-s_name '-' <ls_et_fieldmapping>-s_subname into lv_fieldname_string.
+            endif.
+            assign component lv_fieldname_string of structure <ls_source_data> to <lv_source_value>.
+*            <lv_source_value> = sy-tabix.
+            if sy-subrc = 0.
+              get reference of <lv_source_value> into <ls_et_fieldmapping>-s_ref_value.
+            endif.
+          endif.
+          "target
+          if ev_type_kind_target ca 'ST'.
+            unassign <lv_target_value>.
+            assign er_target_struc->* to <ls_target_data>.
+            if <ls_et_fieldmapping>-t_subname is initial.
+              lv_fieldname_string = <ls_et_fieldmapping>-t_name.
+            else.
+              concatenate <ls_et_fieldmapping>-t_name '-' <ls_et_fieldmapping>-t_subname  into lv_fieldname_string.
+            endif.
+            assign component lv_fieldname_string of structure <ls_target_data> to <lv_target_value>.
+*            <lv_target_value> = sy-tabix.
+            if sy-subrc = 0.
+              get reference of <lv_target_value> into <ls_et_fieldmapping>-t_ref_value.
+            endif.
+          endif.
+        endif."<ls_fieldmapping_source>-s_type_kind = <ls_et_fieldmapping>-t_type_kind.
+      endloop."at lt_fieldmapping_source assigning <ls_fieldmapping_source>
+
+
+
+    endloop."at et_fieldmapping assigning <ls_et_fieldmapping>.
+
+*remove target fields w/o source assignment
+*  start-delete.8-10-2020.issue161.TransferTimepointType
+*    delete et_fieldmapping where s_name is initial.
+*  end-delete.8-10-2020.issue161.TransferTimepointType
+*  start-insert.8-10-2020.issue161.TransferTimepointType
+
+*    If the target field is a BRF Timepoint, then we need to store the timepoint type!
+*    Note: Target Timepoint Type is stored in field <ls_et_fieldmapping>-s_subname
+    delete et_fieldmapping where
+      ( s_name is initial
+        and
+        t_subname <> 'TYPE'
+       ).
+    data: lv_timepoint_type type fdt_timepoint_type.
+*    Der Timepoint-Type wird in Feld s_subname gespeichert (quick n dirty
+    loop at et_fieldmapping assigning <ls_et_fieldmapping>.
+      case <ls_et_fieldmapping>-t_subname.
+        when 'DATE'.
+          lv_timepoint_type = 1.
+        when 'TIME'.
+          lv_timepoint_type = 2.
+        when 'TYPE'.
+          <ls_et_fieldmapping>-s_subname = lv_timepoint_type.
+*          Referenz erzeugen
+          concatenate <ls_et_fieldmapping>-t_name '-' <ls_et_fieldmapping>-t_subname  into lv_fieldname_string.
+          assign component lv_fieldname_string of structure <ls_target_data> to <lv_target_value>.
+*            <lv_target_value> = sy-tabix.
+          if sy-subrc = 0.
+            get reference of <lv_target_value> into <ls_et_fieldmapping>-t_ref_value.
+          endif.
+        when others.
+      endcase.
+    endloop.
+*  end-insert.8-10-2020.issue161.TransferTimepointType
+
+*delete position for nested fields
+
+    loop at et_fieldmapping assigning <ls_et_fieldmapping>.
+      if <ls_et_fieldmapping>-t_subname is not initial.
+        clear <ls_et_fieldmapping>-t_position.
+      endif.
+      if <ls_et_fieldmapping>-s_subname is not initial.
+        clear <ls_et_fieldmapping>-s_position.
+      endif.
+    endloop.
+
+
+  endmethod. "create_fieldmapping_new
+
+
   method create_metadata_eventtype.
 
 ************************************************************************
@@ -1770,6 +1807,304 @@ class zcl_rulerunner implementation.
   endmethod.
 
 
+  method create_resultgroup_range.
+**    creates a range table of BRF resultgroups
+    data: ls_range type line of tyt_range_resultgroups.
+    field-symbols: <ls_resultgroups> type tys_resultgroups.
+
+
+    clear et_range_resultgroups.
+    ls_range-sign = 'I'.
+    ls_range-option = 'EQ'.
+    loop at it_resultgroups assigning <ls_resultgroups>.
+      ls_range-low = <ls_resultgroups>-resultgroup.
+      append ls_range to et_range_resultgroups.
+    endloop.
+
+
+  endmethod.
+
+
+  method delete_events.
+************************************************************************
+*   Deletes Events from rulerunner database                            *
+*                                                                      *
+*  Programmer: Derk Rösler                                             *
+*  Date:       03 Dec 2018                                             *
+*                                                                      *
+************************************************************************
+
+    data:
+      lt_events_key              type standard table of tys_events_key,
+      ls_events_key              type tys_events_key,
+      lt_eventlog_key            type standard table of tys_eventlog_key,
+      ls_eventlog_key            type tys_events_key,
+      lv_continue_deletion       type abap_bool value 'X',
+      ls_messages                type line of tyt_messages,
+      lv_timestamp_planned       type zrulerun_timestamp_pla,
+      lt_range_timestamp_planned type tyt_range_timestamp,
+      ls_range_timestamp_planned type line of tyt_range_timestamp,
+      lv_package_size            type i.
+
+    field-symbols:
+      <ls_eventlog_key> type tys_eventlog_key,
+      <ls_events_key>   type tys_events_key.
+
+*    initialize messages
+    ls_messages-arbgb = 'ZRULERUNNER_MSG'.
+    ls_messages-msgty = 'I'.
+    call function 'MESSAGES_INITIALIZE'.
+
+
+
+*    Test Mode ?
+    if iv_test_mode = 'X'.
+      ls_messages-txtnr = 200.
+      lv_package_size = 0. "we need to select all relevant recs
+*      this may result in an memory overflow, in this case just do not use the test-mode
+    else.
+      ls_messages-txtnr = 215.
+      lv_package_size = 2000.
+    endif.
+    append ls_messages to et_messages.
+    if iv_display_messages = 'X'.
+      message_store( changing cs_message = ls_messages  ).
+    endif.
+
+
+*    planned events in the future?
+    if iv_delete_future_events = 'X'.
+*      we do not care about the selection criteria
+      lv_timestamp_planned = iv_timestamp_planned_max.
+    else.
+*      events in the future not allowed
+      if iv_timestamp_planned_max > gv_timestamp
+        or iv_timestamp_planned_max is initial.
+        lv_timestamp_planned = gv_timestamp.
+      else.
+        lv_timestamp_planned = iv_timestamp_planned_max.
+      endif.
+    endif.
+*    construct range tab
+    if lv_timestamp_planned is not initial.
+      ls_range_timestamp_planned-sign = 'I'.
+      ls_range_timestamp_planned-option = 'LT'.
+      ls_range_timestamp_planned-low = lv_timestamp_planned.
+      append ls_range_timestamp_planned to lt_range_timestamp_planned.
+    endif.
+
+
+
+*        get events from table zrulerun_events
+
+*    Step 1: determine already processed events via view zrulerun_vevlog
+
+
+*        get processed events from zrulerun_plog
+
+*        View zrulerun_vevlog contains only events
+*        that have been processed yet
+    try.
+
+        while lv_continue_deletion = 'X'.
+          clear lt_eventlog_key.
+          select
+            client
+             eventid
+             resultgroup
+             functionid
+
+          from
+              zrulerun_vevlog
+          into table
+              lt_eventlog_key
+          up to 2000 rows
+          where
+           eventid in it_range_event_id
+           and  eventtype in it_range_event_types
+           and  resultgroup in it_range_resultgroups
+           and  tst_processed in it_range_timestamp_processed
+           and tst_planned in lt_range_timestamp_planned
+           and tst_created in it_range_timestamp_created
+          group by
+            client
+             eventid
+             resultgroup
+             functionid  .
+
+          ls_messages-txtnr = 205.
+          ls_messages-msgv1 = sy-dbcnt.
+          ls_messages-msgv2 = 'ZRULERUN_PLOG'.
+          if sy-dbcnt = lv_package_size and sy-dbcnt is not initial.
+            lv_continue_deletion = 'X'.
+          else.
+            lv_continue_deletion = ''.
+          endif.
+          append ls_messages to et_messages.
+          if iv_display_messages = 'X'.
+            message_store( changing cs_message = ls_messages  ).
+          endif.
+
+*    !!!!! Deletion in DB Tables !!!!!1
+          if iv_test_mode ne 'X'.
+*          Step 1: delete from processing log
+            delete zrulerun_plog from table lt_eventlog_key.
+            ls_messages-txtnr = 220.
+            ls_messages-msgv1 = sy-dbcnt.
+            ls_messages-msgv2 = 'ZRULERUN_PLOG'.
+            append ls_messages to et_messages.
+            if iv_display_messages = 'X'.
+              message_store( changing cs_message = ls_messages  ).
+            endif.
+*        Step 2: delete from event table
+            loop at lt_eventlog_key  assigning <ls_eventlog_key>.
+              move-corresponding <ls_eventlog_key> to ls_events_key .
+              collect ls_events_key into lt_events_key.
+            endloop.
+
+            delete zrulerun_events from table lt_events_key.
+
+            ls_messages-txtnr = 220.
+            ls_messages-msgv1 = sy-dbcnt.
+            ls_messages-msgv2 = 'ZRULERUN_EVENTS'.
+            append ls_messages to et_messages.
+            if iv_display_messages = 'X'.
+              message_store( changing cs_message = ls_messages  ).
+            endif.
+*        --------------------
+            commit work.
+*        ---------------------
+          endif."iv_test_mode ne 'X'.
+        endwhile."lv_continue_deletion = 'X'.
+
+
+        if iv_delete_unprocessed_events = 'X'.
+*        we need to delete events in zrulerun_events that correspond to the selection criteria
+          lv_continue_deletion = 'X'.
+          while lv_continue_deletion = 'X'.
+            clear lt_events_key.
+
+*        DB-Select
+            select
+              client
+              eventid
+            from
+                zrulerun_events
+            into table
+                lt_events_key
+            up to lv_package_size rows
+            where
+             eventid in it_range_event_id
+             and  eventtype in it_range_event_types
+*         and  resultgroup in it_range_resultgroups
+*         and  tst_processed in it_range_timestamp_processed
+             and tst_created in it_range_timestamp_created
+             and tst_planned in lt_range_timestamp_planned
+            group by
+                client
+                eventid
+             .
+
+            ls_messages-txtnr = 205.
+            ls_messages-msgv1 = sy-dbcnt.
+            ls_messages-msgv2 = 'ZRULERUN_EVENTS'.
+            if sy-dbcnt = lv_package_size and sy-dbcnt is not initial.
+              lv_continue_deletion = 'X'.
+            else.
+              lv_continue_deletion = ''.
+            endif.
+
+            append ls_messages to et_messages.
+            if iv_display_messages = 'X'.
+              message_store( changing cs_message = ls_messages  ).
+            endif.
+            if iv_test_mode ne 'X'.
+              delete zrulerun_events from table lt_events_key.
+              ls_messages-txtnr = 220.
+              ls_messages-msgv1 = sy-dbcnt.
+              ls_messages-msgv2 = 'ZRULERUN_EVENTS'.
+              append ls_messages to et_messages.
+              if iv_display_messages = 'X'.
+                message_store( changing cs_message =  ls_messages  ).
+              endif.
+*        --------------------
+              commit work.
+*        ---------------------
+            endif."iv_test_mode ne 'X'.
+
+          endwhile. "lv_continue_deletion = 'X'.
+
+        endif."iv_delete_unprocessed_events = 'X'.
+
+        if iv_display_messages = 'X'.
+
+          call function 'MESSAGES_SHOW'
+            exporting
+              send_if_one        = space    " Message sent directly if number = 1
+              batch_list_type    = 'J'    " J = job log / L = in spool list / B = both
+              show_linno         = 'X'    " Also show line numbers
+              show_linno_text    = space    " Column header for row
+            exceptions
+              inconsistent_range = 1
+              no_messages        = 2
+              others             = 3.
+          if sy-subrc <> 0.
+
+          endif.
+        endif.
+
+      catch cx_root .
+        raise exception type zcx_rulerunner
+          exporting
+*           textid          =
+*           previous        =
+*           mt_message      =
+            iv_message_text = 'Error while deleting data'.
+
+    endtry.
+  endmethod.
+
+
+  method get_delta_timestamp.
+
+
+    data: lt_range_resultgroups type tyt_range_resultgroups.
+
+
+    create_resultgroup_range(
+      exporting
+        it_resultgroups       = it_resultgroups
+      importing
+        et_range_resultgroups = lt_range_resultgroups
+    ).
+
+*      Delta-Mode: adjust iv_timestamp_planned_from
+*        by reading last delta update from Delta-Management table
+
+
+    if lt_range_resultgroups is initial.
+
+      select single   tst_planned
+      into ev_delta_timestamp
+      from zrulerun_delta
+      where eventtype = iv_eventtype
+      and resultgroup = ''.
+
+    else." lt_range_resultgroups is initial
+
+*        multiple resultgroups may have different timestamps
+*        to be on the safe side we use minimum
+      select min(   tst_planned )
+      into ev_delta_timestamp
+      from zrulerun_delta
+      where eventtype = iv_eventtype
+      and resultgroup in lt_range_resultgroups.
+    endif. " lt_range_resultgroups is initial.
+
+
+  endmethod.
+
+
   method get_function_id.
 
 ************************************************************************
@@ -1957,6 +2292,19 @@ class zcl_rulerunner implementation.
   endmethod.
 
 
+  method get_rulerunner_version.
+    data: lv_version type tyv_version.
+
+    lv_version  = 'Main 0.10'.
+    append lv_version to et_versions.
+    lv_version  = 'BW 0.4'.
+    append lv_version to et_versions.
+    lv_version  = 'ODATA 0.2'.
+    append lv_version to et_versions.
+
+  endmethod.
+
+
   method get_type_description.
 
 
@@ -2060,6 +2408,144 @@ class zcl_rulerunner implementation.
   endmethod.
 
 
+  method message_store.
+
+*  adjust line number
+    cs_message-zeile = cs_message-zeile  + 1.
+    shift cs_message-msgv1 left deleting leading space.
+    call function 'MESSAGE_STORE'
+      exporting
+        arbgb = cs_message-arbgb   " Message ID
+*       exception_if_not_active = 'X'    " X = exception not_active is initialized if
+        msgty = cs_message-msgty   " Type of message (I, S, W, E, A)
+        msgv1 = cs_message-msgv1    " First variable parameter of message
+        msgv2 = cs_message-msgv2    " Second variable parameter of message
+        msgv3 = cs_message-msgv3    " Third variable parameter of message
+        msgv4 = cs_message-msgv4    " Fourth variable parameter of message
+        txtnr = cs_message-txtnr    " Message Number
+*       zeile = SPACE    " Reference line (if it exists)
+*      importing
+*       act_severity            =     " Level of current message
+*       max_severity            =     " Maximum level of severity
+*      exceptions
+*       message_type_not_valid  = 1
+*       not_active              = 2
+*       others                  = 3
+      .
+    if sy-subrc <> 0.
+*     message id sy-msgid type sy-msgty number sy-msgno
+*                with sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    endif.
+  endmethod.
+
+
+  method move_data_source_to_target.
+
+************************************************************************
+*                                                                      *
+*  Moves data from source to target                                    *
+*  Metadata are buffered (for performance reasons)                     *
+*  created: 31th August 2018                                           *
+*                                                                      *
+*  changes:                                                            *
+*      10.08.2020 Buffering gt_datamover_meta                          *
+************************************************************************
+
+    data:
+      lr_source_data     type ref to data,
+      lr_target_data     type ref to data,
+      lv_target_abs_name type zrulerun_abs_name,
+      lv_source_abs_name type zrulerun_abs_name,
+
+      ls_datamover_meta  type zrulerun_datamover_meta_s.
+
+
+
+
+*check inputs
+    if io_source_data is initial .
+      return.
+    endif.
+    if eo_target_data is not supplied.
+      return.
+    endif.
+
+*get references and absolute names
+    get reference of io_source_data into lr_source_data.
+    get_type_description(
+      exporting
+        ir_dataref      = lr_source_data
+      importing
+        ev_absolut_name = lv_source_abs_name
+    ).
+    get reference of eo_target_data into lr_target_data.
+    get_type_description(
+      exporting
+        ir_dataref      = lr_target_data
+      importing
+        ev_absolut_name = lv_target_abs_name
+    ).
+
+
+* read metadata from buffer
+    clear ls_datamover_meta.
+
+
+    read table gt_datamover_meta into ls_datamover_meta
+      with  table key
+        source_abs_name  = lv_source_abs_name
+        target_abs_name = lv_target_abs_name.
+
+    if sy-subrc <> 0."read table gt_datamover_meta
+*        buffer read fails -> need to create metadata
+
+      ls_datamover_meta-source_abs_name  = lv_source_abs_name. "inserted.10-8-2020.Buffering gt_datamover_meta
+      ls_datamover_meta-target_abs_name  = lv_target_abs_name."inserted.10-8-2020.Buffering gt_datamover_meta
+      try.
+          create_fieldmapping_new(
+            exporting
+              ir_source_data      = lr_source_data
+              ir_target_data      = lr_target_data
+            importing
+              et_fieldmapping     = ls_datamover_meta-fieldmapping_t
+              ev_type_kind_source = ls_datamover_meta-type_kind_source     " Type Kind: T-table,S-structure,E-element
+              ev_type_kind_target = ls_datamover_meta-type_kind_target     " Type Kind: T-table,S-structure,E-element
+              er_source_struc     =  ls_datamover_meta-ref_source_struc
+              er_target_struc     =  ls_datamover_meta-ref_target_struc
+          ).
+
+*          ls_datamover_meta-source_abs_name  = lv_source_abs_name. "deleted.10-8-2020.Buffering gt_datamover_meta
+*          ls_datamover_meta-target_abs_name  = lv_target_abs_name."deleted.10-8-2020.Buffering gt_datamover_meta
+          insert ls_datamover_meta into table gt_datamover_meta.
+        catch cx_root .
+          insert ls_datamover_meta into table gt_datamover_meta."inserted.10-8-2020.Buffering gt_datamover_meta
+          raise exception type zcx_rulerunner
+            exporting
+              iv_message_text = 'Error while creating fieldmapping'.
+      endtry.
+    endif. "sy-subrc <> 0."read table gt_datamover_meta
+
+    try.
+*      finally move the data
+        move_data_source_to_target_int(
+          exporting
+            io_source_data      = io_source_data
+            iv_type_kind_source = ls_datamover_meta-type_kind_source
+            iv_type_kind_target = ls_datamover_meta-type_kind_target
+            ir_source_struc     = ls_datamover_meta-ref_source_struc
+            ir_target_struc     = ls_datamover_meta-ref_target_struc
+          changing
+            ct_fieldmapping     = ls_datamover_meta-fieldmapping_t
+            co_target_data      = eo_target_data
+        ).
+      catch cx_root .
+        raise exception type zcx_rulerunner
+          exporting
+            iv_message_text = 'Error while moving data'.
+    endtry.
+  endmethod.
+
+
   method move_data_source_to_target_int.
 
 ************************************************************************
@@ -2067,8 +2553,9 @@ class zcl_rulerunner implementation.
 *  moves data from source to target                                    *
 *  fieldmapping must be provided                                       *
 *  created: 26th April 2018                                            *
-*                                                                      *
-*  22 may 2018: Performance Enhancement                                *
+*  changes:                                                            *
+*   10th August 2020: Transfer BRF Timepoint Types to target issue#161 *
+*   22 may 2018: Performance Enhancement                               *
 *                reuse of existing data references to transfer values (source -> target)
 ************************************************************************
 
@@ -2136,10 +2623,25 @@ class zcl_rulerunner implementation.
 *            structure->structure
 *              Performance: use existing data references
             <ls_source_data_temp> = <ls_source_data>.
+
+
+
             loop at ct_fieldmapping assigning <ls_fieldmapping>.
-              assign <ls_fieldmapping>-s_ref_value->* to <lv_source_value>.
-              assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
-              <lv_target_value> = <lv_source_value>.
+*             start-delete.#1.8-10-2020.issue161.TransferTimepointType
+*              assign <ls_fieldmapping>-s_ref_value->* to <lv_source_value>.
+*              assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
+*              <lv_target_value> = <lv_source_value>.
+*             end-delete.#1.8-10-2020.issue161.TransferTimepointType
+*             start-insert.#1.8-10-2020.issue161.TransferTimepointType
+              if  <ls_fieldmapping>-t_subname = 'TYPE'.
+                assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
+                <lv_target_value> = <ls_fieldmapping>-s_subname.
+              else.
+                assign <ls_fieldmapping>-s_ref_value->* to <lv_source_value>.
+                assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
+                <lv_target_value> = <lv_source_value>.
+              endif.
+*             end-insert.#1.8-10-2020.issue161.TransferTimepointType
             endloop.
 *              Note:
 *            <ls_fieldmapping>-s_ref_value references to <ls_source_data_temp>
@@ -2151,9 +2653,21 @@ class zcl_rulerunner implementation.
 *           read only first line of source
             loop at <lt_source_data> assigning <ls_source_data> .
               loop at ct_fieldmapping assigning <ls_fieldmapping>.
-                assign <ls_fieldmapping>-s_ref_value->* to <lv_source_value>.
-                assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
-                <lv_target_value> = <lv_source_value>.
+*             start-delete.#2.8-10-2020.issue161.TransferTimepointType
+*                assign <ls_fieldmapping>-s_ref_value->* to <lv_source_value>.
+*                assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
+*                <lv_target_value> = <lv_source_value>.
+*             end-delete.#2.8-10-2020.issue161.TransferTimepointType
+*             start-insert.#2.8-10-2020.issue161.TransferTimepointType
+                if  <ls_fieldmapping>-t_subname = 'TYPE'.
+                  assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
+                  <lv_target_value> = <ls_fieldmapping>-s_subname.
+                else.
+                  assign <ls_fieldmapping>-s_ref_value->* to <lv_source_value>.
+                  assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
+                  <lv_target_value> = <lv_source_value>.
+                endif.
+*             end-insert.#2.8-10-2020.issue161.TransferTimepointType
               endloop.
 *              Note:
 *            <ls_fieldmapping>-s_ref_value references to <ls_source_data_temp>
@@ -2175,9 +2689,21 @@ class zcl_rulerunner implementation.
 *              Performance: use existing data references
             <ls_source_data_temp> = <ls_source_data>.
             loop at ct_fieldmapping assigning <ls_fieldmapping>.
-              assign <ls_fieldmapping>-s_ref_value->* to <lv_source_value>.
-              assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
-              <lv_target_value> = <lv_source_value>.
+*             start-delete.#3.8-10-2020.issue161.TransferTimepointType
+*                assign <ls_fieldmapping>-s_ref_value->* to <lv_source_value>.
+*                assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
+*                <lv_target_value> = <lv_source_value>.
+*             end-delete.#3.8-10-2020.issue161.TransferTimepointType
+*             start-insert.#3.8-10-2020.issue161.TransferTimepointType
+              if  <ls_fieldmapping>-t_subname = 'TYPE'.
+                assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
+                <lv_target_value> = <ls_fieldmapping>-s_subname.
+              else.
+                assign <ls_fieldmapping>-s_ref_value->* to <lv_source_value>.
+                assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
+                <lv_target_value> = <lv_source_value>.
+              endif.
+*             end-insert.#3.8-10-2020.issue161.TransferTimepointType
             endloop.
 *              Note:
 *            <ls_fieldmapping>-s_ref_value references to <ls_source_data_temp>
@@ -2191,9 +2717,21 @@ class zcl_rulerunner implementation.
 *              Performance: use existing data references
               <ls_source_data_temp> = <ls_source_data>.
               loop at ct_fieldmapping assigning <ls_fieldmapping>.
-                assign <ls_fieldmapping>-s_ref_value->* to <lv_source_value>.
-                assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
-                <lv_target_value> = <lv_source_value>.
+*             start-delete.#4.8-10-2020.issue161.TransferTimepointType
+*                assign <ls_fieldmapping>-s_ref_value->* to <lv_source_value>.
+*                assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
+*                <lv_target_value> = <lv_source_value>.
+*             end-delete.#4.8-10-2020.issue161.TransferTimepointType
+*             start-insert.#4.8-10-2020.issue161.TransferTimepointType
+                if  <ls_fieldmapping>-t_subname = 'TYPE'.
+                  assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
+                  <lv_target_value> = <ls_fieldmapping>-s_subname.
+                else.
+                  assign <ls_fieldmapping>-s_ref_value->* to <lv_source_value>.
+                  assign <ls_fieldmapping>-t_ref_value->* to <lv_target_value>.
+                  <lv_target_value> = <lv_source_value>.
+                endif.
+*             end-insert.#4.8-10-2020.issue161.TransferTimepointType
               endloop.
 *              Note:
 *            <ls_fieldmapping>-s_ref_value references to <ls_source_data_temp>
@@ -2317,6 +2855,57 @@ class zcl_rulerunner implementation.
 *           mt_message      =
             iv_message_text = 'Error while processing single event'.
     endtry.
+  endmethod.
+
+
+  method process_multiple_eventids.
+************************************************************************
+*                                                                      *
+*  Processes a multiple Event ID's                                     *
+*                                                                      *
+*      Note: only one result object can be handed over                 *
+*            therefore the event-ID's / BRF-Functions must             *
+*            be selected carefully                                     *
+*            The result of these event-ID's/BRF-functions must         *
+*            be transferrable into the result object  somehow                 *
+************************************************************************
+    data: lt_resultgroups type tyts_resultgroups,
+          ls_resultgroups type tys_resultgroups.
+
+
+
+*Step    : transfer resultgroups into internal format
+
+    if iv_resultgroup is supplied and iv_resultgroup is not initial.
+      ls_resultgroups-resultgroup = iv_resultgroup.
+      append ls_resultgroups to lt_resultgroups.
+    endif.
+    if it_resultgroups is supplied and it_resultgroups is not initial.
+      append lines of it_resultgroups to lt_resultgroups.
+    endif.
+
+
+    try.
+        process_multiple_eventids_int(
+          exporting
+            it_table_with_eventid = it_table_with_eventid
+            iv_update_processing_log  = iv_update_processing_log
+            iv_repeat_processing  = iv_repeat_processing
+            iv_package_size       = iv_package_size
+            it_resultgroups = lt_resultgroups
+          importing
+            eo_result_data        = eo_result_data
+*      changing
+*        ct_brf_function_list  = lt_brf_function_list
+        ).
+      catch cx_root.
+
+        raise exception type zcx_rulerunner
+          exporting
+            iv_message_text = 'Error while processing multiple events'.
+        return.
+    endtry.
+
   endmethod.
 
 
@@ -2542,7 +3131,6 @@ class zcl_rulerunner implementation.
     endwhile."lv_db_cursor_close = abap_false.
 
   endmethod.
-
 
 
   method process_single_event.
@@ -3059,202 +3647,6 @@ class zcl_rulerunner implementation.
   endmethod."process_stored_events
 
 
-  method set_debug_mode.
-
-    gv_debug_mode = iv_debug_mode.
-
-  endmethod.
-
-
-  method set_timestamp.
-
-    get time stamp field gv_timestamp.
-  endmethod.
-
-
-
-
-
-  method update_processing_log.
-
-
-
-************************************************************************
-*                                                                      *
-*  Updates the Process-Timestamps in table zrulerun_plog (Alias "PLOG" *
-*                                                                      *
-*                                                                      *
-************************************************************************
-*
-
-* Summary:
-*    Method updates the processing log for events that are stored in table zrulerun_events
-*    When executing multiple events rulerunner checks for Events with identical parameters.
-*       Events with identical parameters are executed only once!!!
-*       But the PLOG must be updated also for events that have been skipped
-*    it_event_data: contains eventid's that must be updated in PLOG
-*    it_range_resultgroups: contains resultgroups that must be updated in PLOG
-*    it_processing_log: contains
-
-
-    data: lt_event_plog_timestamps type standard table of zrulerun_plog,
-          ls_event_plog_timestamps type zrulerun_plog,
-          lts_processing_log       type tyts_processing_log.
-
-    field-symbols:
-
-      <ls_event_id>       type zrulerun_events,
-      <ls_resultgroups>   type  tys_resultgroups,
-      <ls_processing_log> type tys_processing_log.
-
-
-*Step: initializations
-
-
-*Step: check inputs
-
-    if it_event_data is initial.
-      return.
-    endif.
-
-
-
-*Debugging?
-    zcl_rulerunner=>check_debug_mode( ).
-
-*Step: Performance:
-    lts_processing_log = it_processing_log.
-
-
-*Step: process it_event_data
-
-    loop at it_event_data assigning <ls_event_id>.
-      clear ls_event_plog_timestamps.
-*  Eventid
-      ls_event_plog_timestamps-eventid = <ls_event_id>-eventid.
-*   set "Timestamp processed"
-      ls_event_plog_timestamps-tst_processed = gv_timestamp.
-
-      if it_resultgroups is initial.
-*        event really processed when record in it_processing_log exists
-        loop at it_processing_log assigning <ls_processing_log>
-            where eventid = <ls_event_id>-eventid
-            and resultgroup = ''.
-          ls_event_plog_timestamps-resultgroup = ''.
-          ls_event_plog_timestamps-functionid = <ls_processing_log>-functionid.
-          ls_event_plog_timestamps-tst_processed  = <ls_processing_log>-tst_processed.
-          append ls_event_plog_timestamps to lt_event_plog_timestamps.
-        endloop.
-        if sy-subrc <> 0. " no processing log -> record skipped
-          ls_event_plog_timestamps-skipped = abap_true.
-          append ls_event_plog_timestamps to lt_event_plog_timestamps.
-        endif.
-
-
-      else. "it_resultgroups is initial.
-
-        "-----
-        loop at it_resultgroups assigning <ls_resultgroups>.
-
-          ls_event_plog_timestamps-resultgroup = <ls_resultgroups>-resultgroup.
-*        event really processed when record in it_processing_log exists
-          loop at it_processing_log assigning <ls_processing_log>
-           where eventid = <ls_event_id>-eventid
-              and resultgroup = <ls_resultgroups>-resultgroup .
-
-            ls_event_plog_timestamps-functionid = <ls_processing_log>-functionid.
-            ls_event_plog_timestamps-tst_processed  = <ls_processing_log>-tst_processed.
-            append ls_event_plog_timestamps to lt_event_plog_timestamps.
-
-          endloop. "at it_processing_log assigning <ls_processing_log>
-          if sy-subrc <> 0. " no processing log -> record skipped
-            ls_event_plog_timestamps-skipped = abap_true.
-            append ls_event_plog_timestamps to lt_event_plog_timestamps.
-          endif.
-
-        endloop. "at it_resultgroups assigning <ls_resultgroups>.
-        "-----
-
-      endif. "it_resultgroups is initial.
-
-    endloop. "at it_event_data assigning <ls_event_id>.
-
-*Step: modify database table
-*  ####ToDo####: DB-Table Locking
-    modify zrulerun_plog from table lt_event_plog_timestamps.
-
-
-  endmethod.
-
-  method process_multiple_eventids.
-************************************************************************
-*                                                                      *
-*  Processes a multiple Event ID's                                     *
-*                                                                      *
-*      Note: only one result object can be handed over                 *
-*            therefore the event-ID's / BRF-Functions must             *
-*            be selected carefully                                     *
-*            The result of these event-ID's/BRF-functions must         *
-*            be transferrable into the result object  somehow                 *
-************************************************************************
-    data: lt_resultgroups type tyts_resultgroups,
-          ls_resultgroups type tys_resultgroups.
-
-
-
-*Step    : transfer resultgroups into internal format
-
-    if iv_resultgroup is supplied and iv_resultgroup is not initial.
-      ls_resultgroups-resultgroup = iv_resultgroup.
-      append ls_resultgroups to lt_resultgroups.
-    endif.
-    if it_resultgroups is supplied and it_resultgroups is not initial.
-      append lines of it_resultgroups to lt_resultgroups.
-    endif.
-
-
-    try.
-        process_multiple_eventids_int(
-          exporting
-            it_table_with_eventid = it_table_with_eventid
-            iv_update_processing_log  = iv_update_processing_log
-            iv_repeat_processing  = iv_repeat_processing
-            iv_package_size       = iv_package_size
-            it_resultgroups = lt_resultgroups
-          importing
-            eo_result_data        = eo_result_data
-*      changing
-*        ct_brf_function_list  = lt_brf_function_list
-        ).
-      catch cx_root.
-
-        raise exception type zcx_rulerunner
-          exporting
-            iv_message_text = 'Error while processing multiple events'.
-        return.
-    endtry.
-
-  endmethod.
-
-
-  method create_resultgroup_range.
-**    creates a range table of BRF resultgroups
-    data: ls_range type line of tyt_range_resultgroups.
-    field-symbols: <ls_resultgroups> type tys_resultgroups.
-
-
-    clear et_range_resultgroups.
-    ls_range-sign = 'I'.
-    ls_range-option = 'EQ'.
-    loop at it_resultgroups assigning <ls_resultgroups>.
-      ls_range-low = <ls_resultgroups>-resultgroup.
-      append ls_range to et_range_resultgroups.
-    endloop.
-
-
-  endmethod.
-
-
   method remove_already_processed_event.
     data: lt_range_resultgroup  type tyt_range_resultgroups,
           lt_event_id_processed type tyth_event_id,
@@ -3324,111 +3716,6 @@ class zcl_rulerunner implementation.
 
   endmethod.
 
-
-  method get_delta_timestamp.
-
-
-    data: lt_range_resultgroups type tyt_range_resultgroups.
-
-
-    create_resultgroup_range(
-      exporting
-        it_resultgroups       = it_resultgroups
-      importing
-        et_range_resultgroups = lt_range_resultgroups
-    ).
-
-*      Delta-Mode: adjust iv_timestamp_planned_from
-*        by reading last delta update from Delta-Management table
-
-
-    if lt_range_resultgroups is initial.
-
-      select single   tst_planned
-      into ev_delta_timestamp
-      from zrulerun_delta
-      where eventtype = iv_eventtype
-      and resultgroup = ''.
-
-    else." lt_range_resultgroups is initial
-
-*        multiple resultgroups may have different timestamps
-*        to be on the safe side we use minimum
-      select min(   tst_planned )
-      into ev_delta_timestamp
-      from zrulerun_delta
-      where eventtype = iv_eventtype
-      and resultgroup in lt_range_resultgroups.
-    endif. " lt_range_resultgroups is initial.
-
-
-  endmethod.
-
-
-  method update_delta_timestamp.
-    data: ls_delta type zrulerun_delta.
-    field-symbols: <ls_resultgroups> type tys_resultgroups.
-
-    ls_delta-eventtype = iv_eventtype.
-    ls_delta-tst_planned = iv_timestamp_planned.
-
-    if it_resultgroups is initial.
-      modify zrulerun_delta from ls_delta.
-    else.
-      loop at it_resultgroups assigning <ls_resultgroups>.
-        ls_delta-resultgroup = <ls_resultgroups>-resultgroup.
-        modify zrulerun_delta from ls_delta.
-      endloop.
-    endif.
-
-  endmethod.
-
-
-  method show_rulerunner_customizing.
-
-*    calls BRF workbench with rulerunner application
-
-*    Optional parameter iv_brf_component_id allows to navigate to an arbitrary object
-
-
-    data: lo_ui_exec          type ref to if_fdt_wd_ui_execution,
-          lo_wd_instance      type ref to if_fdt_wd_factory,
-          lv_brf_component_id type zrulerun_functionid.
-
-
-    try.
-        lo_wd_instance = cl_fdt_wd_factory=>get_instance( ).
-        lo_ui_exec = lo_wd_instance->get_ui_execution( ).
-*   The if_fdt_wd_ui_execution interface has a function to call the workbench, optionally specifying an object using the IV_ID importing parameter.
-*break-point.
-        if iv_brf_component_id is initial.
-
-          get_function_id(
-            exporting
-              iv_function_id      =  ''   " BRFplus: Function ID
-              iv_function_name    =    const_rulerun_brf_functionname " BRFplus Function Name
-              iv_application_name =     const_rulerun_brf_applicatname" BRFplus Application name
-            importing
-              ev_function_id      =  lv_brf_component_id   " BRFplus: Function ID
-          ).
-
-        else.
-          lv_brf_component_id = iv_brf_component_id.
-        endif.
-
-        lo_ui_exec->execute_workbench(
-          exporting
-            iv_id           =  lv_brf_component_id   " ID
-*        iv_timestamp    =     " Timestamp
-*        iv_display_mode =     " Display Mode
-        )..
-      catch cx_root.
-        raise exception type zcx_rulerunner
-          exporting
-            iv_message_text = 'Error while showing rr customizing'.
-        return.
-    endtry.
-  endmethod.
 
   method select_for_all_entries_in.
 
@@ -3584,392 +3871,193 @@ class zcl_rulerunner implementation.
   endmethod.
 
 
+  method set_debug_mode.
 
-  method move_data_source_to_target.
+    gv_debug_mode = iv_debug_mode.
 
-************************************************************************
-*                                                                      *
-*  Moves data from source to target                                    *
-*  Metadata are buffered (for performance reasons)                     *
-*  created: 31th August 2018                                           *
-*                                                                      *
-*                                                                      *
-*                                                                      *
-************************************************************************
-
-    data:
-      lr_source_data     type ref to data,
-      lr_target_data     type ref to data,
-      lv_target_abs_name type zrulerun_abs_name,
-      lv_source_abs_name type zrulerun_abs_name,
-
-      ls_datamover_meta  type zrulerun_datamover_meta_s.
+  endmethod.
 
 
+  method set_timestamp.
+
+    get time stamp field gv_timestamp.
+  endmethod.
 
 
-*check inputs
-    if io_source_data is initial .
-      return.
-    endif.
-    if eo_target_data is not supplied.
-      return.
-    endif.
+  method show_rulerunner_customizing.
 
-*get references and absolute names
-    get reference of io_source_data into lr_source_data.
-    get_type_description(
-      exporting
-        ir_dataref      = lr_source_data
-      importing
-        ev_absolut_name = lv_source_abs_name
-    ).
-    get reference of eo_target_data into lr_target_data.
-    get_type_description(
-      exporting
-        ir_dataref      = lr_target_data
-      importing
-        ev_absolut_name = lv_target_abs_name
-    ).
+*    calls BRF workbench with rulerunner application
+
+*    Optional parameter iv_brf_component_id allows to navigate to an arbitrary object
 
 
-* read metadata from buffer
-    clear ls_datamover_meta.
+    data: lo_ui_exec          type ref to if_fdt_wd_ui_execution,
+          lo_wd_instance      type ref to if_fdt_wd_factory,
+          lv_brf_component_id type zrulerun_functionid.
 
 
-    read table gt_datamover_meta into ls_datamover_meta
-      with  table key
-        source_abs_name  = lv_source_abs_name
-        target_abs_name = lv_target_abs_name.
+    try.
+        lo_wd_instance = cl_fdt_wd_factory=>get_instance( ).
+        lo_ui_exec = lo_wd_instance->get_ui_execution( ).
+*   The if_fdt_wd_ui_execution interface has a function to call the workbench, optionally specifying an object using the IV_ID importing parameter.
+*break-point.
+        if iv_brf_component_id is initial.
 
-    if sy-subrc <> 0."read table gt_datamover_meta
-*        buffer read fails -> need to create metadata
-
-      try.
-          create_fieldmapping_new(
+          get_function_id(
             exporting
-              ir_source_data      = lr_source_data
-              ir_target_data      = lr_target_data
+              iv_function_id      =  ''   " BRFplus: Function ID
+              iv_function_name    =    const_rulerun_brf_functionname " BRFplus Function Name
+              iv_application_name =     const_rulerun_brf_applicatname" BRFplus Application name
             importing
-              et_fieldmapping     = ls_datamover_meta-fieldmapping_t
-              ev_type_kind_source = ls_datamover_meta-type_kind_source     " Type Kind: T-table,S-structure,E-element
-              ev_type_kind_target = ls_datamover_meta-type_kind_target     " Type Kind: T-table,S-structure,E-element
-              er_source_struc     =  ls_datamover_meta-ref_source_struc
-              er_target_struc     =  ls_datamover_meta-ref_target_struc
+              ev_function_id      =  lv_brf_component_id   " BRFplus: Function ID
           ).
 
-          ls_datamover_meta-source_abs_name  = lv_source_abs_name.
-          ls_datamover_meta-target_abs_name  = lv_target_abs_name.
-          insert ls_datamover_meta into table gt_datamover_meta.
-        catch cx_root .
-          raise exception type zcx_rulerunner
-            exporting
-              iv_message_text = 'Error while creating fieldmapping'.
-      endtry.
-    endif. "sy-subrc <> 0."read table gt_datamover_meta
-
-    try.
-*      finally move the data
-        move_data_source_to_target_int(
-          exporting
-            io_source_data      = io_source_data
-            iv_type_kind_source = ls_datamover_meta-type_kind_source
-            iv_type_kind_target = ls_datamover_meta-type_kind_target
-            ir_source_struc     = ls_datamover_meta-ref_source_struc
-            ir_target_struc     = ls_datamover_meta-ref_target_struc
-          changing
-            ct_fieldmapping     = ls_datamover_meta-fieldmapping_t
-            co_target_data      = eo_target_data
-        ).
-      catch cx_root .
-        raise exception type zcx_rulerunner
-          exporting
-            iv_message_text = 'Error while moving data'.
-    endtry.
-  endmethod.
-
-
-  method get_rulerunner_version.
-    data: lv_version type tyv_version.
-
-    lv_version  = 'Main 0.9'.
-    append lv_version to et_versions.
-    lv_version  = 'BW 0.4'.
-    append lv_version to et_versions.
-    lv_version  = 'ODATA 0.2'.
-    append lv_version to et_versions.
-
-  endmethod.
-
-
-  method delete_events.
-************************************************************************
-*   Deletes Events from rulerunner database                            *
-*                                                                      *
-*  Programmer: Derk Rösler                                             *
-*  Date:       03 Dec 2018                                             *
-*                                                                      *
-************************************************************************
-
-    data:
-      lt_events_key              type standard table of tys_events_key,
-      ls_events_key              type tys_events_key,
-      lt_eventlog_key            type standard table of tys_eventlog_key,
-      ls_eventlog_key            type tys_events_key,
-      lv_continue_deletion       type abap_bool value 'X',
-      ls_messages                type line of tyt_messages,
-      lv_timestamp_planned       type zrulerun_timestamp_pla,
-      lt_range_timestamp_planned type tyt_range_timestamp,
-      ls_range_timestamp_planned type line of tyt_range_timestamp,
-      lv_package_size            type i.
-
-    field-symbols:
-      <ls_eventlog_key> type tys_eventlog_key,
-      <ls_events_key>   type tys_events_key.
-
-*    initialize messages
-    ls_messages-arbgb = 'ZRULERUNNER_MSG'.
-    ls_messages-msgty = 'I'.
-    call function 'MESSAGES_INITIALIZE'.
-
-
-
-*    Test Mode ?
-    if iv_test_mode = 'X'.
-      ls_messages-txtnr = 200.
-      lv_package_size = 0. "we need to select all relevant recs
-*      this may result in an memory overflow, in this case just do not use the test-mode
-    else.
-      ls_messages-txtnr = 215.
-      lv_package_size = 2000.
-    endif.
-    append ls_messages to et_messages.
-    if iv_display_messages = 'X'.
-      message_store( changing cs_message = ls_messages  ).
-    endif.
-
-
-*    planned events in the future?
-    if iv_delete_future_events = 'X'.
-*      we do not care about the selection criteria
-      lv_timestamp_planned = iv_timestamp_planned_max.
-    else.
-*      events in the future not allowed
-      if iv_timestamp_planned_max > gv_timestamp
-        or iv_timestamp_planned_max is initial.
-        lv_timestamp_planned = gv_timestamp.
-      else.
-        lv_timestamp_planned = iv_timestamp_planned_max.
-      endif.
-    endif.
-*    construct range tab
-    if lv_timestamp_planned is not initial.
-      ls_range_timestamp_planned-sign = 'I'.
-      ls_range_timestamp_planned-option = 'LT'.
-      ls_range_timestamp_planned-low = lv_timestamp_planned.
-      append ls_range_timestamp_planned to lt_range_timestamp_planned.
-    endif.
-
-
-
-*        get events from table zrulerun_events
-
-*    Step 1: determine already processed events via view zrulerun_vevlog
-
-
-*        get processed events from zrulerun_plog
-
-*        View zrulerun_vevlog contains only events
-*        that have been processed yet
-    try.
-
-        while lv_continue_deletion = 'X'.
-          clear lt_eventlog_key.
-          select
-            client
-             eventid
-             resultgroup
-             functionid
-
-          from
-              zrulerun_vevlog
-          into table
-              lt_eventlog_key
-          up to 2000 rows
-          where
-           eventid in it_range_event_id
-           and  eventtype in it_range_event_types
-           and  resultgroup in it_range_resultgroups
-           and  tst_processed in it_range_timestamp_processed
-           and tst_planned in lt_range_timestamp_planned
-           and tst_created in it_range_timestamp_created
-          group by
-            client
-             eventid
-             resultgroup
-             functionid  .
-
-          ls_messages-txtnr = 205.
-          ls_messages-msgv1 = sy-dbcnt.
-          ls_messages-msgv2 = 'ZRULERUN_PLOG'.
-          if sy-dbcnt = lv_package_size and sy-dbcnt is not initial.
-            lv_continue_deletion = 'X'.
-          else.
-            lv_continue_deletion = ''.
-          endif.
-          append ls_messages to et_messages.
-          if iv_display_messages = 'X'.
-            message_store( changing cs_message = ls_messages  ).
-          endif.
-
-*    !!!!! Deletion in DB Tables !!!!!1
-          if iv_test_mode ne 'X'.
-*          Step 1: delete from processing log
-            delete zrulerun_plog from table lt_eventlog_key.
-            ls_messages-txtnr = 220.
-            ls_messages-msgv1 = sy-dbcnt.
-            ls_messages-msgv2 = 'ZRULERUN_PLOG'.
-            append ls_messages to et_messages.
-            if iv_display_messages = 'X'.
-              message_store( changing cs_message = ls_messages  ).
-            endif.
-*        Step 2: delete from event table
-            loop at lt_eventlog_key  assigning <ls_eventlog_key>.
-              move-corresponding <ls_eventlog_key> to ls_events_key .
-              collect ls_events_key into lt_events_key.
-            endloop.
-
-            delete zrulerun_events from table lt_events_key.
-
-            ls_messages-txtnr = 220.
-            ls_messages-msgv1 = sy-dbcnt.
-            ls_messages-msgv2 = 'ZRULERUN_EVENTS'.
-            append ls_messages to et_messages.
-            if iv_display_messages = 'X'.
-              message_store( changing cs_message = ls_messages  ).
-            endif.
-*        --------------------
-            commit work.
-*        ---------------------
-          endif."iv_test_mode ne 'X'.
-        endwhile."lv_continue_deletion = 'X'.
-
-
-        if iv_delete_unprocessed_events = 'X'.
-*        we need to delete events in zrulerun_events that correspond to the selection criteria
-          lv_continue_deletion = 'X'.
-          while lv_continue_deletion = 'X'.
-            clear lt_events_key.
-
-*        DB-Select
-            select
-              client
-              eventid
-            from
-                zrulerun_events
-            into table
-                lt_events_key
-            up to lv_package_size rows
-            where
-             eventid in it_range_event_id
-             and  eventtype in it_range_event_types
-*         and  resultgroup in it_range_resultgroups
-*         and  tst_processed in it_range_timestamp_processed
-             and tst_created in it_range_timestamp_created
-             and tst_planned in lt_range_timestamp_planned
-            group by
-                client
-                eventid
-             .
-
-            ls_messages-txtnr = 205.
-            ls_messages-msgv1 = sy-dbcnt.
-            ls_messages-msgv2 = 'ZRULERUN_EVENTS'.
-            if sy-dbcnt = lv_package_size and sy-dbcnt is not initial.
-              lv_continue_deletion = 'X'.
-            else.
-              lv_continue_deletion = ''.
-            endif.
-
-            append ls_messages to et_messages.
-            if iv_display_messages = 'X'.
-              message_store( changing cs_message = ls_messages  ).
-            endif.
-            if iv_test_mode ne 'X'.
-              delete zrulerun_events from table lt_events_key.
-              ls_messages-txtnr = 220.
-              ls_messages-msgv1 = sy-dbcnt.
-              ls_messages-msgv2 = 'ZRULERUN_EVENTS'.
-              append ls_messages to et_messages.
-              if iv_display_messages = 'X'.
-                message_store( changing cs_message =  ls_messages  ).
-              endif.
-*        --------------------
-              commit work.
-*        ---------------------
-            endif."iv_test_mode ne 'X'.
-
-          endwhile. "lv_continue_deletion = 'X'.
-
-        endif."iv_delete_unprocessed_events = 'X'.
-
-        if iv_display_messages = 'X'.
-
-          call function 'MESSAGES_SHOW'
-            exporting
-              send_if_one        = space    " Message sent directly if number = 1
-              batch_list_type    = 'J'    " J = job log / L = in spool list / B = both
-              show_linno         = 'X'    " Also show line numbers
-              show_linno_text    = space    " Column header for row
-            exceptions
-              inconsistent_range = 1
-              no_messages        = 2
-              others             = 3.
-          if sy-subrc <> 0.
-
-          endif.
+        else.
+          lv_brf_component_id = iv_brf_component_id.
         endif.
 
-      catch cx_root .
+        lo_ui_exec->execute_workbench(
+          exporting
+            iv_id           =  lv_brf_component_id   " ID
+*        iv_timestamp    =     " Timestamp
+*        iv_display_mode =     " Display Mode
+        )..
+      catch cx_root.
         raise exception type zcx_rulerunner
           exporting
-*           textid          =
-*           previous        =
-*           mt_message      =
-            iv_message_text = 'Error while deleting data'.
-
+            iv_message_text = 'Error while showing rr customizing'.
+        return.
     endtry.
   endmethod.
 
 
-  method message_store.
+  method update_delta_timestamp.
+    data: ls_delta type zrulerun_delta.
+    field-symbols: <ls_resultgroups> type tys_resultgroups.
 
-*  adjust line number
-    cs_message-zeile = cs_message-zeile  + 1.
-    shift cs_message-msgv1 left deleting leading space.
-    call function 'MESSAGE_STORE'
-      exporting
-        arbgb = cs_message-arbgb   " Message ID
-*       exception_if_not_active = 'X'    " X = exception not_active is initialized if
-        msgty = cs_message-msgty   " Type of message (I, S, W, E, A)
-        msgv1 = cs_message-msgv1    " First variable parameter of message
-        msgv2 = cs_message-msgv2    " Second variable parameter of message
-        msgv3 = cs_message-msgv3    " Third variable parameter of message
-        msgv4 = cs_message-msgv4    " Fourth variable parameter of message
-        txtnr = cs_message-txtnr    " Message Number
-*       zeile = SPACE    " Reference line (if it exists)
-*      importing
-*       act_severity            =     " Level of current message
-*       max_severity            =     " Maximum level of severity
-*      exceptions
-*       message_type_not_valid  = 1
-*       not_active              = 2
-*       others                  = 3
-      .
-    if sy-subrc <> 0.
-*     message id sy-msgid type sy-msgty number sy-msgno
-*                with sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ls_delta-eventtype = iv_eventtype.
+    ls_delta-tst_planned = iv_timestamp_planned.
+
+    if it_resultgroups is initial.
+      modify zrulerun_delta from ls_delta.
+    else.
+      loop at it_resultgroups assigning <ls_resultgroups>.
+        ls_delta-resultgroup = <ls_resultgroups>-resultgroup.
+        modify zrulerun_delta from ls_delta.
+      endloop.
     endif.
+
   endmethod.
 
-endclass.
+
+  method update_processing_log.
+
+
+
+************************************************************************
+*                                                                      *
+*  Updates the Process-Timestamps in table zrulerun_plog (Alias "PLOG" *
+*                                                                      *
+*                                                                      *
+************************************************************************
+*
+
+* Summary:
+*    Method updates the processing log for events that are stored in table zrulerun_events
+*    When executing multiple events rulerunner checks for Events with identical parameters.
+*       Events with identical parameters are executed only once!!!
+*       But the PLOG must be updated also for events that have been skipped
+*    it_event_data: contains eventid's that must be updated in PLOG
+*    it_range_resultgroups: contains resultgroups that must be updated in PLOG
+*    it_processing_log: contains
+
+
+    data: lt_event_plog_timestamps type standard table of zrulerun_plog,
+          ls_event_plog_timestamps type zrulerun_plog,
+          lts_processing_log       type tyts_processing_log.
+
+    field-symbols:
+
+      <ls_event_id>       type zrulerun_events,
+      <ls_resultgroups>   type  tys_resultgroups,
+      <ls_processing_log> type tys_processing_log.
+
+
+*Step: initializations
+
+
+*Step: check inputs
+
+    if it_event_data is initial.
+      return.
+    endif.
+
+
+
+*Debugging?
+    zcl_rulerunner=>check_debug_mode( ).
+
+*Step: Performance:
+    lts_processing_log = it_processing_log.
+
+
+*Step: process it_event_data
+
+    loop at it_event_data assigning <ls_event_id>.
+      clear ls_event_plog_timestamps.
+*  Eventid
+      ls_event_plog_timestamps-eventid = <ls_event_id>-eventid.
+*   set "Timestamp processed"
+      ls_event_plog_timestamps-tst_processed = gv_timestamp.
+
+      if it_resultgroups is initial.
+*        event really processed when record in it_processing_log exists
+        loop at it_processing_log assigning <ls_processing_log>
+            where eventid = <ls_event_id>-eventid
+            and resultgroup = ''.
+          ls_event_plog_timestamps-resultgroup = ''.
+          ls_event_plog_timestamps-functionid = <ls_processing_log>-functionid.
+          ls_event_plog_timestamps-tst_processed  = <ls_processing_log>-tst_processed.
+          append ls_event_plog_timestamps to lt_event_plog_timestamps.
+        endloop.
+        if sy-subrc <> 0. " no processing log -> record skipped
+          ls_event_plog_timestamps-skipped = abap_true.
+          append ls_event_plog_timestamps to lt_event_plog_timestamps.
+        endif.
+
+
+      else. "it_resultgroups is initial.
+
+        "-----
+        loop at it_resultgroups assigning <ls_resultgroups>.
+
+          ls_event_plog_timestamps-resultgroup = <ls_resultgroups>-resultgroup.
+*        event really processed when record in it_processing_log exists
+          loop at it_processing_log assigning <ls_processing_log>
+           where eventid = <ls_event_id>-eventid
+              and resultgroup = <ls_resultgroups>-resultgroup .
+
+            ls_event_plog_timestamps-functionid = <ls_processing_log>-functionid.
+            ls_event_plog_timestamps-tst_processed  = <ls_processing_log>-tst_processed.
+            append ls_event_plog_timestamps to lt_event_plog_timestamps.
+
+          endloop. "at it_processing_log assigning <ls_processing_log>
+          if sy-subrc <> 0. " no processing log -> record skipped
+            ls_event_plog_timestamps-skipped = abap_true.
+            append ls_event_plog_timestamps to lt_event_plog_timestamps.
+          endif.
+
+        endloop. "at it_resultgroups assigning <ls_resultgroups>.
+        "-----
+
+      endif. "it_resultgroups is initial.
+
+    endloop. "at it_event_data assigning <ls_event_id>.
+
+*Step: modify database table
+*  ####ToDo####: DB-Table Locking
+    modify zrulerun_plog from table lt_event_plog_timestamps.
+
+
+  endmethod.
+ENDCLASS.
